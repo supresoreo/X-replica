@@ -11,12 +11,12 @@ import {
 import { ArrowLeft, Send } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 
-export const MessagesScreen: React.FC = () => {
+export const MessagesScreen = () => {
   const conversations = useAppStore((state) => state.conversations);
   const messages = useAppStore((state) => state.messages);
   const sendMessage = useAppStore((state) => state.sendMessage);
   
-  const [selectedConversation, setSelectedConversation] = useState<string | null>(null);
+  const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
 
   const handleSendMessage = () => {

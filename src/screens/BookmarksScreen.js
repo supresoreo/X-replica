@@ -4,7 +4,7 @@ import { Bookmark } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 
-export const BookmarksScreen: React.FC = () => {
+export const BookmarksScreen = () => {
   const tweets = useAppStore((state) => state.tweets);
   const bookmarkedTweets = tweets.filter((t) => t.isBookmarked);
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Sparkles } from 'lucide-react-native/icons';
 
-export const GrokScreen: React.FC = () => {
+export const GrokScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>

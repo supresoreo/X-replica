@@ -12,12 +12,7 @@ import {
 import { Image, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 
-interface CreatePostModalProps {
-  visible: boolean;
-  onClose: () => void;
-}
-
-export const CreatePostModal: React.FC<CreatePostModalProps> = ({ visible, onClose }) => {
+export const CreatePostModal = ({ visible, onClose }) => {
   const [postText, setPostText] = useState('');
   const addTweet = useAppStore((state) => state.addTweet);
   const currentUser = useAppStore((state) => state.currentUser);

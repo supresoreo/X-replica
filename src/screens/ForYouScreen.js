@@ -4,11 +4,7 @@ import { Sparkles } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 
-interface ForYouScreenProps {
-  onCreatePost: () => void;
-}
-
-export const ForYouScreen: React.FC<ForYouScreenProps> = ({ onCreatePost }) => {
+export const ForYouScreen = ({ onCreatePost }) => {
   const tweets = useAppStore((state) => state.tweets);
 
   return (

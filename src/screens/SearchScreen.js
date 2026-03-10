@@ -4,13 +4,13 @@ import { Search } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 
-export const SearchScreen: React.FC = () => {
+export const SearchScreen = () => {
   const searchQuery = useAppStore((state) => state.searchQuery);
   const searchResults = useAppStore((state) => state.searchResults);
   const setSearchQuery = useAppStore((state) => state.setSearchQuery);
   const [localQuery, setLocalQuery] = useState(searchQuery);
 
-  const handleSearch = (text: string) => {
+  const handleSearch = (text) => {
     setLocalQuery(text);
     setSearchQuery(text);
   };

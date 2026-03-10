@@ -3,7 +3,7 @@ import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-nati
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 
-export const ProfileScreen: React.FC = () => {
+export const ProfileScreen = () => {
   const currentUser = useAppStore((state) => state.currentUser);
   const tweets = useAppStore((state) => state.tweets);
   const userTweets = tweets.filter((t) => t.username === currentUser.username);

@@ -2,12 +2,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet } from 'react-native';
 import { House, Search, Sparkles, Bell, Mail } from 'lucide-react-native/icons';
 
-interface TabBarProps {
-  activeTab: string;
-  onTabChange: (tab: string) => void;
-}
-
-export const TabBar: React.FC<TabBarProps> = ({ activeTab, onTabChange }) => {
+export const TabBar = ({ activeTab, onTabChange }) => {
   const tabs = [
     { id: 'forYou', icon: House, label: 'Home' },
     { id: 'search', icon: Search, label: 'Search' },

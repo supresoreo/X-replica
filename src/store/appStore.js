@@ -1,75 +1,6 @@
 import { create } from 'zustand';
 
-export interface Tweet {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-  content: string;
-  timestamp: string;
-  likes: number;
-  retweets: number;
-  replies: number;
-  isLiked: boolean;
-  isRetweeted: boolean;
-  isBookmarked: boolean;
-}
-
-export interface Message {
-  id: string;
-  conversationId: string;
-  sender: string;
-  content: string;
-  timestamp: string;
-}
-
-export interface Conversation {
-  id: string;
-  username: string;
-  displayName: string;
-  avatar: string;
-  lastMessage: string;
-  timestamp: string;
-  unread: boolean;
-}
-
-export interface User {
-  username: string;
-  displayName: string;
-  avatar: string;
-  bio: string;
-  followers: number;
-  following: number;
-  tweets: number;
-  banner: string;
-}
-
-interface AppState {
-  // User
-  currentUser: User;
-  
-  // Tweets
-  tweets: Tweet[];
-  addTweet: (content: string) => void;
-  likeTweet: (id: string) => void;
-  retweetTweet: (id: string) => void;
-  bookmarkTweet: (id: string) => void;
-  
-  // Bookmarks
-  bookmarks: Tweet[];
-  
-  // Messages
-  conversations: Conversation[];
-  messages: { [conversationId: string]: Message[] };
-  sendMessage: (conversationId: string, content: string) => void;
-  
-  // Search
-  searchQuery: string;
-  searchResults: Tweet[];
-  setSearchQuery: (query: string) => void;
-}
-
-export const useAppStore = create<AppState>((set, get) => ({
+export const useAppStore = create((set, get) => ({
   // Initialize current user
   currentUser: {
     username: '@johnsmith',
@@ -142,9 +73,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     },
   ],
   
-  addTweet: (content: string) => {
+  addTweet: (content) => {
     const state = get();
-    const newTweet: Tweet = {
+    const newTweet = {
       id: Date.now().toString(),
       username: state.currentUser.username,
       displayName: state.currentUser.displayName,
@@ -163,7 +94,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ currentUser: { ...state.currentUser, tweets: state.currentUser.tweets + 1 } });
   },
   
-  likeTweet: (id: string) => {
+  likeTweet: (id) => {
     set((state) => ({
       tweets: state.tweets.map((tweet) =>
         tweet.id === id
@@ -177,7 +108,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
   
-  retweetTweet: (id: string) => {
+  retweetTweet: (id) => {
     set((state) => ({
       tweets: state.tweets.map((tweet) =>
         tweet.id === id
@@ -191,7 +122,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }));
   },
   
-  bookmarkTweet: (id: string) => {
+  bookmarkTweet: (id) => {
     set((state) => ({
       tweets: state.tweets.map((tweet) =>
         tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
@@ -269,9 +200,9 @@ export const useAppStore = create<AppState>((set, get) => ({
     ],
   },
   
-  sendMessage: (conversationId: string, content: string) => {
+  sendMessage: (conversationId, content) => {
     const state = get();
-    const newMessage: Message = {
+    const newMessage = {
       id: Date.now().toString(),
       conversationId,
       sender: state.currentUser.username,
@@ -295,7 +226,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   searchQuery: '',
   searchResults: [],
   
-  setSearchQuery: (query: string) => {
+  setSearchQuery: (query) => {
     const state = get();
     set({ searchQuery: query });
     

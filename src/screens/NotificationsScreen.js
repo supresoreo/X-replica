@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Bell } from 'lucide-react-native/icons';
 
-export const NotificationsScreen: React.FC = () => {
+export const NotificationsScreen = () => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>

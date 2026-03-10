@@ -1,13 +1,9 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native/icons';
-import { Tweet as TweetType, useAppStore } from '../store/appStore';
+import { useAppStore } from '../store/appStore';
 
-interface TweetProps {
-  tweet: TweetType;
-}
-
-export const Tweet: React.FC<TweetProps> = ({ tweet }) => {
+export const Tweet = ({ tweet }) => {
   const likeTweet = useAppStore((state) => state.likeTweet);
   const retweetTweet = useAppStore((state) => state.retweetTweet);
   const bookmarkTweet = useAppStore((state) => state.bookmarkTweet);
