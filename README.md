@@ -1,8 +1,188 @@
-This is a new [**React Native**](https://reactnative.dev) project, bootstrapped using [`@react-native-community/cli`](https://github.com/react-native-community/cli).
+# Twitter/X Clone App
 
-# Getting Started
+A full-featured Twitter/X clone built with React Native, TypeScript, and Zustand for state management. This application replicates the core functionality and design of Twitter/X with a clean, simple codebase.
 
-> **Note**: Make sure you have completed the [Set Up Your Environment](https://reactnative.dev/docs/set-up-your-environment) guide before proceeding.
+## Features
+
+### ✅ Core Functionality
+
+- **For You Feed** - Browse a timeline of posts with real-time interactions
+- **Profile Page** - View user profile with stats, bio, and posts
+- **Search** - Search for posts and users with live filtering
+- **Direct Messages** - Full messaging functionality with conversations
+- **Bookmarks** - Save and manage your favorite posts
+- **Post/Tweet Creation** - Create new posts with character count limit (280)
+
+### 🎨 Interactive Features
+
+- ❤️ Like/Unlike posts
+- 🔁 Retweet posts
+- 🔖 Bookmark posts
+- 💬 Reply count display
+- 📊 Analytics view count
+- 🔗 Share posts
+- ✉️ Send direct messages
+- 📊 User statistics (followers, following, posts)
+
+## Technology Stack
+
+- **React Native** - Cross-platform mobile framework
+- **TypeScript** - Type-safe JavaScript
+- **Zustand** - Simple, fast state management
+- **Lucide React Native** - Beautiful, consistent icon set
+- **React Native Safe Area Context** - Handle device safe areas
+
+## Project Structure
+
+```
+midtermExam/
+├── App.tsx                           # Main app component with navigation
+├── src/
+│   ├── store/
+│   │   └── appStore.ts              # Zustand store (global state)
+│   ├── components/
+│   │   ├── Tweet.tsx                # Reusable tweet component
+│   │   ├── CreatePostModal.tsx      # Post creation modal
+│   │   └── TabBar.tsx               # Bottom tab navigation
+│   └── screens/
+│       ├── ForYouScreen.tsx         # Main feed/timeline
+│       ├── ProfileScreen.tsx        # User profile
+│       ├── SearchScreen.tsx         # Search functionality
+│       ├── MessagesScreen.tsx       # Direct messages
+│       └── BookmarksScreen.tsx      # Saved posts
+└── package.json
+```
+
+## State Management (Zustand)
+
+The app uses Zustand for simple, centralized state management:
+
+```typescript
+// Global state includes:
+- currentUser: User profile information
+- tweets: Array of all posts
+- bookmarks: Saved posts
+- conversations: DM conversations
+- messages: Message history
+- searchQuery & searchResults: Search state
+```
+
+### Key Store Actions:
+- `addTweet(content)` - Create new post
+- `likeTweet(id)` - Toggle like on post
+- `retweetTweet(id)` - Toggle retweet
+- `bookmarkTweet(id)` - Toggle bookmark
+- `sendMessage(conversationId, content)` - Send DM
+- `setSearchQuery(query)` - Search posts
+
+## Getting Started
+
+### Prerequisites
+- Node.js >= 22.11.0
+- React Native development environment setup
+
+### Installation
+
+1. Install dependencies:
+```bash
+npm install
+```
+
+2. Start Metro bundler:
+```bash
+npm start
+```
+
+3. Run on Android:
+```bash
+npm run android
+```
+
+4. Run on iOS:
+```bash
+npm run ios
+```
+
+## Usage Guide
+
+### Navigation
+- Use the bottom tab bar to switch between screens:
+  - 🏠 Home (For You feed)
+  - ✨ Grok (AI assistant)
+  - 🔔 Notifications
+  - ✉️ Messagesks
+  - 👤 Profile
+
+### Creating Posts
+1. Tap the blue feather ✒️ floating button on the home screen
+2. Type your message (max 280 characters)
+3. Tap "Post" to publish
+
+### Interacting with Posts
+- Tap heart icon to like (turns pink)
+- Tap retweet icon to retweet (turns green)
+- Tap bookmark icon to save for later
+- Tap analytics icon to view engagement
+- Tap share icon to share post
+- Reply count shown with chat bubble icon
+
+### Direct Messages
+1. Go to Messages tab
+2. Tap on a conversation
+3. Type and send messages
+4. Tap ← to return to conversations list
+
+### Search
+1. Go to Search tab
+2. Type in the search box
+3. Results filter in real-time by content, username, or display name
+
+## Design Philosophy
+
+This app follows a **minimalist black and white** approach, inspired by X's modern design:
+- ✅ Minimal dependencies (only essential libraries)
+- ✅ Basic but functional UI components
+- ✅ Professional Lucide icons for clean, consistent UI
+- ✅ Easy to understand and modify
+- ✅ Simple unicode icons for minimalist look
+- ✅ Clean monochrome design with subtle accents
+
+## Color Scheme
+
+- **Primary Black**: #000 (Buttons and accents)
+- **Text Dark**: #0f1419 (Primary text)
+- **Text Gray**: #536471 (Secondary text)
+- **Border/Background**: #eff3f4 (Subtle borders)
+- **Background**: #fff (Main background)
+- **Like Pink**: #f91880 (Like action)
+- **Retweet Green**: #00ba7c (Retweet action)
+
+## Sample Data
+
+The app comes with pre-populated sample data:
+- 4 sample tweets from @elonmusk, @github, @reactnative, @openai
+- 3 sample DM conversations
+- 1 user profile (@johnsmith)
+
+## Future Enhancements
+
+Potential features to add:
+- Image/video uploads
+- Comments/replies thread
+- User authentication
+- Follow/unfollow users
+- Notifications
+- Dark mode theme
+- Pull-to-refresh
+- Infinite scroll pagination
+
+## License
+
+This is an educational project for learning purposes.
+
+---
+
+Built with ❤️ using React Native and Zustand
 
 ## Step 1: Start Metro
 
