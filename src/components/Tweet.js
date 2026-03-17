@@ -2,6 +2,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
+import { UserAvatar } from './UserAvatar';
 
 export const Tweet = ({ tweet }) => {
   const likeTweet = useAppStore((state) => state.likeTweet);
@@ -11,9 +12,13 @@ export const Tweet = ({ tweet }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View style={styles.avatarCircle}>
-          <Text style={styles.avatarText}>{tweet.displayName[0]}</Text>
-        </View>
+        <UserAvatar
+          imageUri={tweet.avatarImage}
+          fallbackText={tweet.avatar || tweet.displayName[0]}
+          backgroundColor={tweet.averageColor || '#000000'}
+          size={40}
+          style={styles.avatarCircle}
+        />
         <View style={styles.headerText}>
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{tweet.displayName}</Text>
@@ -82,18 +87,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000',
     marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   headerText: {
     flex: 1,

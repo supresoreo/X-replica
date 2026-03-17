@@ -10,8 +10,9 @@ import {
 } from 'react-native';
 import { ArrowLeft, Send } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
+import { AppHeader } from '../components/AppHeader';
 
-export const MessagesScreen = () => {
+export const MessagesScreen = ({ onOpenDrawer }) => {
   const conversations = useAppStore((state) => state.conversations);
   const messages = useAppStore((state) => state.messages);
   const sendMessage = useAppStore((state) => state.sendMessage);
@@ -33,40 +34,47 @@ export const MessagesScreen = () => {
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Messages</Text>
-      </View>
+      <AppHeader title="Messages" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView style={styles.conversationsList}>
-        {conversations.map((conv) => (
-          <TouchableOpacity
-            key={conv.id}
-            style={styles.conversation}
-            onPress={() => setSelectedConversation(conv.id)}
-          >
-            <View style={styles.conversationAvatar}>
-              <Text style={styles.conversationAvatarText}>{conv.displayName[0]}</Text>
-            </View>
-            <View style={styles.conversationContent}>
-              <View style={styles.conversationHeader}>
-                <Text style={styles.conversationName}>{conv.displayName}</Text>
-                <Text style={styles.conversationTime}>{conv.timestamp}</Text>
+        {conversations.length ? (
+          conversations.map((conv) => (
+            <TouchableOpacity
+              key={conv.id}
+              style={styles.conversation}
+              onPress={() => setSelectedConversation(conv.id)}
+            >
+              <View style={styles.conversationAvatar}>
+                <Text style={styles.conversationAvatarText}>{conv.displayName[0]}</Text>
               </View>
-              <View style={styles.conversationFooter}>
-                <Text
-                  style={[
-                    styles.conversationMessage,
-                    conv.unread && styles.unreadMessage,
-                  ]}
-                  numberOfLines={1}
-                >
-                  {conv.lastMessage}
-                </Text>
-                {conv.unread && <View style={styles.unreadBadge} />}
+              <View style={styles.conversationContent}>
+                <View style={styles.conversationHeader}>
+                  <Text style={styles.conversationName}>{conv.displayName}</Text>
+                  <Text style={styles.conversationTime}>{conv.timestamp}</Text>
+                </View>
+                <View style={styles.conversationFooter}>
+                  <Text
+                    style={[
+                      styles.conversationMessage,
+                      conv.unread && styles.unreadMessage,
+                    ]}
+                    numberOfLines={1}
+                  >
+                    {conv.lastMessage}
+                  </Text>
+                  {conv.unread && <View style={styles.unreadBadge} />}
+                </View>
               </View>
-            </View>
-          </TouchableOpacity>
-        ))}
+            </TouchableOpacity>
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyStateTitle}>No messages yet</Text>
+            <Text style={styles.emptyStateText}>
+              Your conversations with real users will appear here.
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       <Modal
@@ -145,19 +153,25 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#fff',
   },
-  header: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eff3f4',
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f1419',
-  },
   conversationsList: {
     flex: 1,
+  },
+  emptyState: {
+    marginTop: 80,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+  },
+  emptyStateTitle: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#0f1419',
+    marginBottom: 8,
+  },
+  emptyStateText: {
+    color: '#536471',
+    fontSize: 15,
+    textAlign: 'center',
+    lineHeight: 22,
   },
   conversation: {
     flexDirection: 'row',

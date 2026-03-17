@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { Image, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
+import { UserAvatar } from './UserAvatar';
 
 export const CreatePostModal = ({ visible, onClose }) => {
   const [postText, setPostText] = useState('');
@@ -57,9 +58,13 @@ export const CreatePostModal = ({ visible, onClose }) => {
 
         <View style={styles.content}>
           <View style={styles.userInfo}>
-            <View style={styles.avatarCircle}>
-              <Text style={styles.avatarText}>{currentUser.displayName[0]}</Text>
-            </View>
+            <UserAvatar
+              imageUri={currentUser?.avatarImage}
+              fallbackText={currentUser?.avatar || currentUser?.displayName?.[0]}
+              backgroundColor={currentUser?.averageColor || '#000000'}
+              size={40}
+              style={styles.avatarCircle}
+            />
             <View style={styles.userDetails}>
               <Text style={styles.displayName}>{currentUser.displayName}</Text>
               <Text style={styles.username}>{currentUser.username}</Text>
@@ -149,18 +154,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000',
     marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  avatarText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   userDetails: {
     justifyContent: 'center',

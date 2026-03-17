@@ -3,16 +3,15 @@ import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { Bookmark } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
+import { AppHeader } from '../components/AppHeader';
 
-export const BookmarksScreen = () => {
+export const BookmarksScreen = ({ onOpenDrawer }) => {
   const tweets = useAppStore((state) => state.tweets);
   const bookmarkedTweets = tweets.filter((t) => t.isBookmarked);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Bookmarks</Text>
-      </View>
+      <AppHeader title="Bookmarks" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView style={styles.content}>
         {bookmarkedTweets.length > 0 ? (
@@ -37,17 +36,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eff3f4',
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f1419',
   },
   content: {
     flex: 1,

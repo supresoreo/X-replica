@@ -1,0 +1,50 @@
+[
+  {
+    "id": "65b63531-d9e8-4bd1-bc42-f1a807ce532e",
+    "fullName": "Brian Test",
+    "displayName": "Brian Test",
+    "email": "brian.test@example.com",
+    "birthday": "2000-01-01",
+    "username": "briantest",
+    "bio": "",
+    "avatar": "B",
+    "followers": 0,
+    "following": 0,
+    "tweets": 0,
+    "banner": "#cfd9de",
+    "createdAt": "2026-03-17T10:17:13.266Z",
+    "passwordHash": "ef92b778bafe771e89245b89ecbc08a44a4e166c06659911881f383d4473e94f"
+  },
+  {
+    "id": "41e6f2a9-21e6-4d74-992d-b612c221234f",
+    "fullName": "bri",
+    "displayName": "bri",
+    "email": "brianna@gmail.com",
+    "birthday": "2003-03-03",
+    "username": "bri",
+    "bio": "",
+    "avatar": "B",
+    "followers": 0,
+    "following": 0,
+    "tweets": 0,
+    "banner": "#cfd9de",
+    "createdAt": "2026-03-17T10:19:12.766Z",
+    "passwordHash": "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f"
+  },
+  {
+    "id": "9a3bd35e-5f0c-4901-aae6-fb52e7faea5a",
+    "fullName": "sol",
+    "displayName": "sol",
+    "email": "soreomilkt@gmail.com",
+    "birthday": "2000-03-13",
+    "username": "sol",
+    "bio": "",
+    "avatar": "S",
+    "followers": 0,
+    "following": 0,
+    "tweets": 0,
+    "banner": "#cfd9de",
+    "createdAt": "2026-03-17T11:54:08.725Z",
+    "passwordHash": "ef797c8118f02dfb649607dd5d3f8c7623048c9c063d532cc95c5ed7a898a64f"
+  }
+]

@@ -1,13 +1,12 @@
 import React from 'react';
 import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { Sparkles } from 'lucide-react-native/icons';
+import { AppHeader } from '../components/AppHeader';
 
-export const GrokScreen = () => {
+export const GrokScreen = ({ onOpenDrawer }) => {
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>Grok</Text>
-      </View>
+      <AppHeader title="Grok" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView style={styles.content}>
         <View style={styles.emptyState}>
@@ -26,17 +25,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#fff',
-  },
-  header: {
-    padding: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eff3f4',
-    backgroundColor: '#fff',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#0f1419',
   },
   content: {
     flex: 1,
