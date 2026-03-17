@@ -5,7 +5,7 @@ import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 import { AppHeader } from '../components/AppHeader';
 
-export const ForYouScreen = ({ onCreatePost, onOpenDrawer }) => {
+export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
   const tweets = useAppStore((state) => state.tweets);
   const currentUser = useAppStore((state) => state.currentUser);
   const knownUsers = useAppStore((state) => state.knownUsers);
@@ -66,7 +66,7 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer }) => {
       <ScrollView style={styles.feed}>
         {visibleTweets.length ? (
           visibleTweets.map((tweet) => (
-            <Tweet key={tweet.id} tweet={tweet} />
+            <Tweet key={tweet.id} tweet={tweet} onPressProfile={onOpenProfile} />
           ))
         ) : (
           <View style={styles.emptyState}>

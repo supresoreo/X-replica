@@ -43,6 +43,7 @@ function App() {
   const [showAccountAuthFlow, setShowAccountAuthFlow] = useState(false);
 
   const [activeTab, setActiveTab] = useState('forYou');
+  const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showSideNavigation, setShowSideNavigation] = useState(false);
 
@@ -94,8 +95,18 @@ function App() {
     const result = await switchAccount(accountId);
     if (result.ok) {
       setShowSideNavigation(false);
+      setSelectedProfileUserId(null);
       setActiveTab('profile');
     }
+  };
+
+  const handleOpenProfileFromTweet = (userId) => {
+    if (!userId) {
+      return;
+    }
+
+    setSelectedProfileUserId(userId);
+    setActiveTab('profile');
   };
 
   const renderScreen = () => {
@@ -105,6 +116,7 @@ function App() {
           <ForYouScreen
             onCreatePost={() => setShowCreatePost(true)}
             onOpenDrawer={() => setShowSideNavigation(true)}
+            onOpenProfile={handleOpenProfileFromTweet}
           />
         );
       case 'search':
@@ -116,7 +128,12 @@ function App() {
       case 'messages':
         return <MessagesScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
       case 'profile':
-        return <ProfileScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return (
+          <ProfileScreen
+            onOpenDrawer={() => setShowSideNavigation(true)}
+            profileUserId={selectedProfileUserId}
+          />
+        );
       case 'bookmarks':
         return <BookmarksScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
       default:
@@ -124,6 +141,7 @@ function App() {
           <ForYouScreen
             onCreatePost={() => setShowCreatePost(true)}
             onOpenDrawer={() => setShowSideNavigation(true)}
+            onOpenProfile={handleOpenProfileFromTweet}
           />
         );
     }
@@ -198,6 +216,9 @@ function App() {
           onAddAccount={handleOpenAddAccount}
           onSwitchAccount={handleSwitchAccount}
           onNavigate={(tab) => {
+            if (tab === 'profile') {
+              setSelectedProfileUserId(null);
+            }
             setActiveTab(tab);
             setShowSideNavigation(false);
           }}

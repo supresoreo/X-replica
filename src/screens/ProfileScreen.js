@@ -7,7 +7,7 @@ import { EditProfileModal } from '../components/EditProfileModal';
 import { FollowListModal } from '../components/FollowListModal';
 import { UserAvatar } from '../components/UserAvatar';
 
-export const ProfileScreen = ({ onOpenDrawer }) => {
+export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [followListMode, setFollowListMode] = useState(null);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -16,14 +16,25 @@ export const ProfileScreen = ({ onOpenDrawer }) => {
   const followUser = useAppStore((state) => state.followUser);
   const unfollowUser = useAppStore((state) => state.unfollowUser);
   const tweets = useAppStore((state) => state.tweets);
-  const userTweets = tweets.filter((tweet) => tweet.userId === currentUser?.id || tweet.username === currentUser?.username);
+  const viewedUser = useMemo(() => {
+    if (!profileUserId || profileUserId === currentUser?.id) {
+      return currentUser;
+    }
+
+    return knownUsers.find((user) => user.id === profileUserId) || currentUser;
+  }, [currentUser, knownUsers, profileUserId]);
+  const isOwnProfile = viewedUser?.id === currentUser?.id;
+  const userTweets = tweets.filter(
+    (tweet) => tweet.userId === viewedUser?.id || tweet.username === viewedUser?.username
+  );
   const suggestedUsers = useMemo(() => {
     return knownUsers
       .filter((user) => user.id !== currentUser?.id)
       .slice(0, 4);
   }, [currentUser?.id, knownUsers]);
+  const isFollowingViewedUser = viewedUser?.id ? isFollowingUser(viewedUser.id) : false;
 
-  if (!currentUser) {
+  if (!currentUser || !viewedUser) {
     return null;
   }
 
@@ -32,51 +43,64 @@ export const ProfileScreen = ({ onOpenDrawer }) => {
       <AppHeader title="Profile" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView style={styles.content}>
-        {currentUser.bannerImage ? (
-          <ImageBackground source={{ uri: currentUser.bannerImage }} style={styles.banner} imageStyle={styles.bannerImage} />
+        {viewedUser.bannerImage ? (
+          <ImageBackground source={{ uri: viewedUser.bannerImage }} style={styles.banner} imageStyle={styles.bannerImage} />
         ) : (
-          <View style={[styles.banner, { backgroundColor: currentUser.banner }]} />
+          <View style={[styles.banner, { backgroundColor: viewedUser.banner }]} />
         )}
         
         <View style={styles.profileInfo}>
           <UserAvatar
-            imageUri={currentUser.avatarImage}
-            fallbackText={currentUser.avatar || currentUser.displayName[0]}
-            backgroundColor={currentUser.averageColor || '#000000'}
+            imageUri={viewedUser.avatarImage}
+            fallbackText={viewedUser.avatar || viewedUser.displayName[0]}
+            backgroundColor={viewedUser.averageColor || '#000000'}
             size={76}
             borderWidth={4}
             borderColor="#ffffff"
             style={styles.avatarCircle}
           />
-          
-          <TouchableOpacity 
-            style={styles.editButton}
-            onPress={() => setShowEditModal(true)}
-          >
-            <Text style={styles.editButtonText}>Edit profile</Text>
-          </TouchableOpacity>
-          
-          <Text style={styles.displayName}>{currentUser.displayName}</Text>
-          <Text style={styles.username}>{currentUser.username}</Text>
-          
-          {currentUser.bio && <Text style={styles.bio}>{currentUser.bio}</Text>}
+
+          {isOwnProfile ? (
+            <TouchableOpacity
+              style={styles.editButton}
+              onPress={() => setShowEditModal(true)}
+            >
+              <Text style={styles.editButtonText}>Edit profile</Text>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              style={[styles.editButton, isFollowingViewedUser && styles.unfollowButton]}
+              onPress={() =>
+                isFollowingViewedUser ? unfollowUser(viewedUser.id) : followUser(viewedUser.id)
+              }
+            >
+              <Text style={[styles.editButtonText, isFollowingViewedUser && styles.unfollowButtonText]}>
+                {isFollowingViewedUser ? 'Unfollow' : 'Follow'}
+              </Text>
+            </TouchableOpacity>
+          )}
+
+          <Text style={styles.displayName}>{viewedUser.displayName}</Text>
+          <Text style={styles.username}>{viewedUser.username}</Text>
+
+          {viewedUser.bio && <Text style={styles.bio}>{viewedUser.bio}</Text>}
           
           <View style={styles.profileMeta}>
-            {currentUser.location && (
-              <Text style={styles.metaItem}>📍 {currentUser.location}</Text>
+            {viewedUser.location && (
+              <Text style={styles.metaItem}>📍 {viewedUser.location}</Text>
             )}
-            {currentUser.website && (
-              <Text style={styles.metaItem}>🔗 {currentUser.website}</Text>
+            {viewedUser.website && (
+              <Text style={styles.metaItem}>🔗 {viewedUser.website}</Text>
             )}
           </View>
           
           <View style={styles.stats}>
             <TouchableOpacity style={styles.stat} onPress={() => setFollowListMode('following')}>
-              <Text style={styles.statNumber}>{currentUser.following}</Text>
+              <Text style={styles.statNumber}>{viewedUser.following}</Text>
               <Text style={styles.statLabel}>Following</Text>
             </TouchableOpacity>
             <TouchableOpacity style={styles.stat} onPress={() => setFollowListMode('followers')}>
-              <Text style={styles.statNumber}>{currentUser.followers}</Text>
+              <Text style={styles.statNumber}>{viewedUser.followers}</Text>
               <Text style={styles.statLabel}>Followers</Text>
             </TouchableOpacity>
           </View>
@@ -102,39 +126,41 @@ export const ProfileScreen = ({ onOpenDrawer }) => {
           <Tweet key={tweet.id} tweet={tweet} />
         ))}
 
-        <View style={styles.suggestionsSection}>
-          <Text style={styles.suggestionsTitle}>Suggested people</Text>
-          {suggestedUsers.map((user) => {
-            const isFollowing = isFollowingUser(user.id);
-            return (
-              <View key={user.id} style={styles.suggestionRow}>
-                <UserAvatar
-                  imageUri={user.avatarImage}
-                  fallbackText={user.avatar || user.displayName[0]}
-                  backgroundColor={user.averageColor || '#000000'}
-                  size={48}
-                />
-                <View style={styles.suggestionDetails}>
-                  <Text style={styles.suggestionName}>{user.displayName}</Text>
-                  <Text style={styles.suggestionUsername}>{user.username}</Text>
-                  {!!user.bio && (
-                    <Text style={styles.suggestionBio} numberOfLines={2}>
-                      {user.bio}
+        {isOwnProfile ? (
+          <View style={styles.suggestionsSection}>
+            <Text style={styles.suggestionsTitle}>Suggested people</Text>
+            {suggestedUsers.map((user) => {
+              const isFollowing = isFollowingUser(user.id);
+              return (
+                <View key={user.id} style={styles.suggestionRow}>
+                  <UserAvatar
+                    imageUri={user.avatarImage}
+                    fallbackText={user.avatar || user.displayName[0]}
+                    backgroundColor={user.averageColor || '#000000'}
+                    size={48}
+                  />
+                  <View style={styles.suggestionDetails}>
+                    <Text style={styles.suggestionName}>{user.displayName}</Text>
+                    <Text style={styles.suggestionUsername}>{user.username}</Text>
+                    {!!user.bio && (
+                      <Text style={styles.suggestionBio} numberOfLines={2}>
+                        {user.bio}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.followButton, isFollowing && styles.unfollowButton]}
+                    onPress={() => (isFollowing ? unfollowUser(user.id) : followUser(user.id))}
+                  >
+                    <Text style={[styles.followButtonText, isFollowing && styles.unfollowButtonText]}>
+                      {isFollowing ? 'Unfollow' : 'Follow'}
                     </Text>
-                  )}
+                  </TouchableOpacity>
                 </View>
-                <TouchableOpacity
-                  style={[styles.followButton, isFollowing && styles.unfollowButton]}
-                  onPress={() => (isFollowing ? unfollowUser(user.id) : followUser(user.id))}
-                >
-                  <Text style={[styles.followButtonText, isFollowing && styles.unfollowButtonText]}>
-                    {isFollowing ? 'Unfollow' : 'Follow'}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            );
-          })}
-        </View>
+              );
+            })}
+          </View>
+        ) : null}
       </ScrollView>
 
       <EditProfileModal 
@@ -145,7 +171,7 @@ export const ProfileScreen = ({ onOpenDrawer }) => {
       <FollowListModal
         visible={Boolean(followListMode)}
         mode={followListMode}
-        userId={currentUser.id}
+        userId={viewedUser.id}
         onClose={() => setFollowListMode(null)}
       />
     </View>

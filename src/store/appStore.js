@@ -5,6 +5,7 @@ import { normalizeApiError, setApiAuthToken } from '../services/apiClient';
 
 const AUTH_TOKEN_KEY = '@xclone_auth_token';
 const LOCAL_STATE_KEY = '@xclone_local_state';
+const ACCOUNT_STATE_KEY_PREFIX = '@xclone_account_state_';
 
 const SEED_USERS = [
   {
@@ -202,15 +203,41 @@ const buildPersistedState = (state) => {
     knownUsers: state.knownUsers,
     deviceAccounts: state.deviceAccounts,
     currentUserId: state.currentUserId,
+  });
+};
+
+const buildAccountState = (state) => {
+  return JSON.stringify({
     tweets: state.tweets,
     bookmarks: state.bookmarks,
     conversations: state.conversations,
     messages: state.messages,
+    searchQuery: state.searchQuery,
+    searchResults: state.searchResults,
   });
 };
 
+const defaultAccountState = () => ({
+  tweets: [],
+  bookmarks: [],
+  conversations: [],
+  messages: {},
+  searchQuery: '',
+  searchResults: { users: [], tweets: [] },
+});
+
+const getAccountStateKey = (userId) => `${ACCOUNT_STATE_KEY_PREFIX}${userId}`;
+
 const persistLocalState = async (state) => {
   await AsyncStorage.setItem(LOCAL_STATE_KEY, buildPersistedState(state));
+};
+
+const persistAccountState = async (userId, state) => {
+  if (!userId) {
+    return;
+  }
+
+  await AsyncStorage.setItem(getAccountStateKey(userId), buildAccountState(state));
 };
 
 const loadPersistedState = async () => {
@@ -224,6 +251,29 @@ const loadPersistedState = async () => {
     return JSON.parse(rawState);
   } catch {
     return null;
+  }
+};
+
+const loadAccountState = async (userId) => {
+  if (!userId) {
+    return defaultAccountState();
+  }
+
+  const rawState = await AsyncStorage.getItem(getAccountStateKey(userId));
+
+  if (!rawState) {
+    return defaultAccountState();
+  }
+
+  try {
+    const parsed = JSON.parse(rawState);
+    return {
+      ...defaultAccountState(),
+      ...parsed,
+      searchResults: parsed?.searchResults || { users: [], tweets: [] },
+    };
+  } catch {
+    return defaultAccountState();
   }
 };
 
@@ -355,6 +405,7 @@ export const useAppStore = create((set, get) => ({
         email: mappedUser.email,
         token,
       });
+      const accountState = await loadAccountState(mappedUser.id);
 
       const nextState = {
         authLoading: false,
@@ -365,10 +416,17 @@ export const useAppStore = create((set, get) => ({
         deviceAccounts: nextDeviceAccounts,
         isAuthenticated: true,
         authError: '',
+        tweets: accountState.tweets,
+        bookmarks: accountState.bookmarks,
+        conversations: accountState.conversations,
+        messages: accountState.messages,
+        searchQuery: accountState.searchQuery,
+        searchResults: accountState.searchResults,
       };
 
       set(nextState);
       await persistLocalState({ ...get(), ...nextState });
+      await persistAccountState(mappedUser.id, { ...get(), ...nextState });
 
       return { ok: true };
     } catch (error) {
@@ -422,6 +480,7 @@ export const useAppStore = create((set, get) => ({
         email: mappedUser.email,
         token,
       });
+      const accountState = await loadAccountState(mappedUser.id);
 
       const nextState = {
         authLoading: false,
@@ -432,10 +491,17 @@ export const useAppStore = create((set, get) => ({
         deviceAccounts: nextDeviceAccounts,
         isAuthenticated: true,
         authError: '',
+        tweets: accountState.tweets,
+        bookmarks: accountState.bookmarks,
+        conversations: accountState.conversations,
+        messages: accountState.messages,
+        searchQuery: accountState.searchQuery,
+        searchResults: accountState.searchResults,
       };
 
       set(nextState);
       await persistLocalState({ ...get(), ...nextState });
+      await persistAccountState(mappedUser.id, { ...get(), ...nextState });
 
       return { ok: true };
     } catch (error) {
@@ -460,6 +526,7 @@ export const useAppStore = create((set, get) => ({
 
     setApiAuthToken(targetAccount.token);
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, targetAccount.token);
+    const accountState = await loadAccountState(targetUser.id);
 
     const nextDeviceAccounts = upsertDeviceAccount(state.deviceAccounts, targetAccount);
     const nextState = {
@@ -469,10 +536,17 @@ export const useAppStore = create((set, get) => ({
       deviceAccounts: nextDeviceAccounts,
       isAuthenticated: true,
       authError: '',
+      tweets: accountState.tweets,
+      bookmarks: accountState.bookmarks,
+      conversations: accountState.conversations,
+      messages: accountState.messages,
+      searchQuery: accountState.searchQuery,
+      searchResults: accountState.searchResults,
     };
 
     set(nextState);
     await persistLocalState({ ...get(), ...nextState });
+    await persistAccountState(targetUser.id, { ...get(), ...nextState });
 
     return { ok: true };
   },
@@ -533,43 +607,63 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 
   likeTweet: (id) => {
-    set((state) => ({
-      tweets: state.tweets.map((tweet) =>
-        tweet.id === id
-          ? {
-              ...tweet,
-              isLiked: !tweet.isLiked,
-              likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
-            }
-          : tweet
-      ),
-    }));
+    set((state) => {
+      const nextState = {
+        tweets: state.tweets.map((tweet) =>
+          tweet.id === id
+            ? {
+                ...tweet,
+                isLiked: !tweet.isLiked,
+                likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
+              }
+            : tweet
+        ),
+      };
+      const mergedState = { ...state, ...nextState };
+      persistLocalState(mergedState);
+      persistAccountState(mergedState.currentUserId, mergedState);
+      return nextState;
+    });
   },
 
   retweetTweet: (id) => {
-    set((state) => ({
-      tweets: state.tweets.map((tweet) =>
-        tweet.id === id
-          ? {
-              ...tweet,
-              isRetweeted: !tweet.isRetweeted,
-              retweets: tweet.isRetweeted ? tweet.retweets - 1 : tweet.retweets + 1,
-            }
-          : tweet
-      ),
-    }));
+    set((state) => {
+      const nextState = {
+        tweets: state.tweets.map((tweet) =>
+          tweet.id === id
+            ? {
+                ...tweet,
+                isRetweeted: !tweet.isRetweeted,
+                retweets: tweet.isRetweeted ? tweet.retweets - 1 : tweet.retweets + 1,
+              }
+            : tweet
+        ),
+      };
+      const mergedState = { ...state, ...nextState };
+      persistLocalState(mergedState);
+      persistAccountState(mergedState.currentUserId, mergedState);
+      return nextState;
+    });
   },
 
   bookmarkTweet: (id) => {
-    set((state) => ({
-      tweets: state.tweets.map((tweet) =>
-        tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
-      ),
-    }));
+    set((state) => {
+      const nextState = {
+        tweets: state.tweets.map((tweet) =>
+          tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
+        ),
+      };
+      const mergedState = { ...state, ...nextState };
+      persistLocalState(mergedState);
+      persistAccountState(mergedState.currentUserId, mergedState);
+      return nextState;
+    });
   },
 
   updateUserProfile: (updates) => {
@@ -602,7 +696,9 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 
   isFollowingUser: (targetUserId) => {
@@ -671,7 +767,9 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 
   unfollowUser: (targetUserId) => {
@@ -709,7 +807,9 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 
   sendMessage: (conversationId, content) => {
@@ -739,7 +839,9 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 
   setSearchQuery: async (query) => {
@@ -798,6 +900,8 @@ export const useAppStore = create((set, get) => ({
     };
 
     set(nextState);
-    persistLocalState({ ...get(), ...nextState });
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
   },
 }));

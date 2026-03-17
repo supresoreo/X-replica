@@ -4,14 +4,18 @@ import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucid
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
-export const Tweet = ({ tweet }) => {
+export const Tweet = ({ tweet, onPressProfile }) => {
   const likeTweet = useAppStore((state) => state.likeTweet);
   const retweetTweet = useAppStore((state) => state.retweetTweet);
   const bookmarkTweet = useAppStore((state) => state.bookmarkTweet);
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
+      <TouchableOpacity
+        style={styles.header}
+        activeOpacity={0.85}
+        onPress={() => onPressProfile?.(tweet.userId)}
+      >
         <UserAvatar
           imageUri={tweet.avatarImage}
           fallbackText={tweet.avatar || tweet.displayName[0]}
@@ -26,7 +30,7 @@ export const Tweet = ({ tweet }) => {
             <Text style={styles.timestamp}>· {tweet.timestamp}</Text>
           </View>
         </View>
-      </View>
+      </TouchableOpacity>
       
       <Text style={styles.content}>{tweet.content}</Text>
       
