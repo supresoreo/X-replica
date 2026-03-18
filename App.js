@@ -53,6 +53,12 @@ function App() {
     hydrateAuth();
   }, [hydrateAuth]);
 
+  useEffect(() => {
+    if (!isAuthenticated || showAccountAuthFlow) {
+      setShowSideNavigation(false);
+    }
+  }, [isAuthenticated, showAccountAuthFlow]);
+
   const navigateAuth = (nextStep) => {
     clearAuthError();
     setAuthStep(nextStep);

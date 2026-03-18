@@ -32,7 +32,6 @@ import { FollowListModal } from './FollowListModal';
 const DRAWER_WIDTH = 310;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const OPEN_GUARD_MS = 250;
-let lastDrawerOpenedAt = 0;
 
 export const SideNavigation = ({
   visible,
@@ -50,6 +49,8 @@ export const SideNavigation = ({
   const [followListMode, setFollowListMode] = useState(null);
   const insets = useSafeAreaInsets();
   const knownUsers = useAppStore((state) => state.knownUsers);
+  const visibleRef = useRef(visible);
+  const drawerOpenedAtRef = useRef(0);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
@@ -89,9 +90,13 @@ export const SideNavigation = ({
   }, [sheetOverlayOpacity, sheetTranslateY]);
 
   useEffect(() => {
+    visibleRef.current = visible;
+
     if (visible) {
       setMounted(true);
-      lastDrawerOpenedAt = Date.now();
+      drawerOpenedAtRef.current = Date.now();
+      translateX.stopAnimation();
+      overlayOpacity.stopAnimation();
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -107,6 +112,9 @@ export const SideNavigation = ({
       return;
     }
 
+    translateX.stopAnimation();
+    overlayOpacity.stopAnimation();
+
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: -DRAWER_WIDTH,
@@ -118,11 +126,15 @@ export const SideNavigation = ({
         duration: 180,
         useNativeDriver: true,
       }),
-    ]).start(() => setMounted(false));
+    ]).start(() => {
+      if (!visibleRef.current) {
+        setMounted(false);
+      }
+    });
   }, [overlayOpacity, translateX, visible]);
 
   const handleOverlayPress = () => {
-    if (Date.now() - lastDrawerOpenedAt < OPEN_GUARD_MS) {
+    if (Date.now() - drawerOpenedAtRef.current < OPEN_GUARD_MS) {
       return;
     }
 
