@@ -14,6 +14,7 @@ import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
 export const CreatePostModal = ({ visible, onClose }) => {
+
   const [postText, setPostText] = useState('');
   const addTweet = useAppStore((state) => state.addTweet);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -25,7 +26,6 @@ export const CreatePostModal = ({ visible, onClose }) => {
       onClose();
     }
   };
-
   const characterCount = postText.length;
   const maxCharacters = 280;
   const canPost = postText.trim().length > 0 && characterCount <= maxCharacters;
@@ -96,8 +96,7 @@ export const CreatePostModal = ({ visible, onClose }) => {
               <TouchableOpacity style={styles.optionButton}>
                 <MapPin size={20} color="#1d9bf0" />
               </TouchableOpacity>
-            </View>
-            
+            </View>           
             <View style={styles.characterCount}>
               <Text
                 style={[
@@ -114,6 +113,7 @@ export const CreatePostModal = ({ visible, onClose }) => {
     </Modal>
   );
 };
+
 
 const styles = StyleSheet.create({
   container: {

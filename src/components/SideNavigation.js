@@ -9,6 +9,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  Alert,
 } from 'react-native';
 import {
   AudioLines,
@@ -23,6 +24,7 @@ import {
   UserRound,
   UsersRound,
   ClipboardList,
+  LogOut,
 } from 'lucide-react-native/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/appStore';
@@ -32,6 +34,7 @@ import { FollowListModal } from './FollowListModal';
 const DRAWER_WIDTH = 310;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const OPEN_GUARD_MS = 250;
+let lastDrawerOpenedAt = 0;
 
 export const SideNavigation = ({
   visible,
@@ -48,13 +51,32 @@ export const SideNavigation = ({
   const [sheetVisible, setSheetVisible] = useState(false);
   const [followListMode, setFollowListMode] = useState(null);
   const insets = useSafeAreaInsets();
+  
+  const logout = useAppStore((state) => state.logout);
   const knownUsers = useAppStore((state) => state.knownUsers);
-  const visibleRef = useRef(visible);
-  const drawerOpenedAtRef = useRef(0);
+  
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
   const overlayOpacity = useRef(new Animated.Value(0)).current;
   const sheetTranslateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const sheetOverlayOpacity = useRef(new Animated.Value(0)).current;
+
+  const handleLogout = () => {
+    Alert.alert(
+      "Log out?",
+      "You can always log back in at any time.",
+      [
+        { text: "Cancel", style: "cancel" },
+        { 
+          text: "Log out", 
+          style: "destructive", 
+          onPress: () => {
+            onClose?.();
+            logout();
+          } 
+        }
+      ]
+    );
+  };
 
   const openAccountSheet = useCallback(() => {
     setSheetVisible(true);
@@ -90,13 +112,9 @@ export const SideNavigation = ({
   }, [sheetOverlayOpacity, sheetTranslateY]);
 
   useEffect(() => {
-    visibleRef.current = visible;
-
     if (visible) {
       setMounted(true);
-      drawerOpenedAtRef.current = Date.now();
-      translateX.stopAnimation();
-      overlayOpacity.stopAnimation();
+      lastDrawerOpenedAt = Date.now();
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -112,9 +130,6 @@ export const SideNavigation = ({
       return;
     }
 
-    translateX.stopAnimation();
-    overlayOpacity.stopAnimation();
-
     Animated.parallel([
       Animated.timing(translateX, {
         toValue: -DRAWER_WIDTH,
@@ -126,18 +141,13 @@ export const SideNavigation = ({
         duration: 180,
         useNativeDriver: true,
       }),
-    ]).start(() => {
-      if (!visibleRef.current) {
-        setMounted(false);
-      }
-    });
+    ]).start(() => setMounted(false));
   }, [overlayOpacity, translateX, visible]);
 
   const handleOverlayPress = () => {
-    if (Date.now() - drawerOpenedAtRef.current < OPEN_GUARD_MS) {
+    if (Date.now() - lastDrawerOpenedAt < OPEN_GUARD_MS) {
       return;
     }
-
     onClose?.();
   };
 
@@ -169,7 +179,6 @@ export const SideNavigation = ({
       onNavigate(item.route);
       return;
     }
-
     onClose();
   };
 
@@ -297,10 +306,19 @@ export const SideNavigation = ({
 
             <View style={styles.divider} />
 
+            {/* Logout Button */}
+            <TouchableOpacity 
+              style={styles.logoutButton} 
+              activeOpacity={0.7} 
+              onPress={handleLogout}
+            >
+              <LogOut size={24} color="#f91880" strokeWidth={2} />
+              <Text style={styles.logoutLabel}>Log out</Text>
+            </TouchableOpacity>
+
           </ScrollView>
         </Animated.View>
 
-        {/* Accounts bottom sheet */}
         {sheetVisible ? (
           <>
             <Animated.View style={[styles.sheetOverlay, { opacity: sheetOverlayOpacity }]}>
@@ -377,7 +395,6 @@ export const SideNavigation = ({
             if (onSelectProfile) {
               onSelectProfile(userId);
             } else {
-              // Fallback: navigate to profile screen
               onNavigate?.('profile');
             }
           }}
@@ -423,8 +440,6 @@ const styles = StyleSheet.create({
   },
   miniAvatarWrap: {
     position: 'relative',
-  },
-  miniAvatar: {
   },
   badgeBubble: {
     position: 'absolute',
@@ -527,53 +542,18 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 18,
   },
-  accountsSection: {
-    marginTop: 4,
-  },
-  accountsTitle: {
-    color: '#71767b',
-    fontSize: 15,
-    fontWeight: '700',
-    marginBottom: 12,
-  },
-  accountRow: {
-    minHeight: 56,
+  logoutButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
+    paddingVertical: 12,
+    marginBottom: 20,
   },
-  accountTextWrap: {
-    flex: 1,
-  },
-  accountName: {
-    color: '#ffffff',
-    fontSize: 16,
+  logoutLabel: {
+    color: '#f91880',
+    fontSize: 18,
     fontWeight: '700',
+    marginLeft: 18,
   },
-  accountHandle: {
-    color: '#71767b',
-    fontSize: 14,
-  },
-  activeAccountText: {
-    color: '#1d9bf0',
-    fontSize: 14,
-    fontWeight: '700',
-  },
-  addAccountButton: {
-    marginTop: 10,
-    minHeight: 44,
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: '#2f3336',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  addAccountText: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '700',
-  },
-  // Bottom sheet
   sheetOverlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(15, 20, 25, 0.65)',

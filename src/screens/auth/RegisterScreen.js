@@ -150,7 +150,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
     paddingHorizontal: 24,
-    paddingBottom: 24,
+    paddingTop: 20,
+    paddingBottom: 40,
   },
   topRow: {
     flexDirection: 'row',
