@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
 import { Plus } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -9,7 +9,18 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
   const tweets = useAppStore((state) => state.tweets);
   const currentUser = useAppStore((state) => state.currentUser);
   const knownUsers = useAppStore((state) => state.knownUsers);
+  const refreshAppData = useAppStore((state) => state.refreshAppData);
   const [feedTab, setFeedTab] = useState('forYou');
+  const [refreshing, setRefreshing] = useState(false);
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshAppData]);
 
   const followingFeedTweets = !currentUser
     ? []
@@ -63,7 +74,10 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
         </TouchableOpacity>
       </View>
       
-      <ScrollView style={styles.feed}>
+      <ScrollView
+        style={styles.feed}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         {visibleTweets.length ? (
           visibleTweets.map((tweet) => (
             <Tweet key={tweet.id} tweet={tweet} onPressProfile={onOpenProfile} />

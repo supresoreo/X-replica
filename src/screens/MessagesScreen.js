@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   StyleSheet,
   Modal,
+  RefreshControl,
 } from 'react-native';
 import { ArrowLeft, Send } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
@@ -16,9 +17,16 @@ export const MessagesScreen = ({ onOpenDrawer }) => {
   const conversations = useAppStore((state) => state.conversations);
   const messages = useAppStore((state) => state.messages);
   const sendMessage = useAppStore((state) => state.sendMessage);
+  const refreshAppData = useAppStore((state) => state.refreshAppData);
+  const markAllMessagesAsRead = useAppStore((state) => state.markAllMessagesAsRead);
   
   const [selectedConversation, setSelectedConversation] = useState(null);
   const [messageText, setMessageText] = useState('');
+  const [refreshing, setRefreshing] = useState(false);
+
+  useEffect(() => {
+    markAllMessagesAsRead();
+  }, [markAllMessagesAsRead]);
 
   const handleSendMessage = () => {
     if (messageText.trim() && selectedConversation) {
@@ -32,11 +40,23 @@ export const MessagesScreen = ({ onOpenDrawer }) => {
     ? messages[selectedConversation] || []
     : [];
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshAppData]);
+
   return (
     <View style={styles.container}>
       <AppHeader title="Messages" onOpenDrawer={onOpenDrawer} />
       
-      <ScrollView style={styles.conversationsList}>
+      <ScrollView
+        style={styles.conversationsList}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         {conversations.length ? (
           conversations.map((conv) => (
             <TouchableOpacity

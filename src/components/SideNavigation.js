@@ -27,9 +27,12 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
+import { FollowListModal } from './FollowListModal';
 
 const DRAWER_WIDTH = 310;
 const SCREEN_HEIGHT = Dimensions.get('window').height;
+const OPEN_GUARD_MS = 250;
+let lastDrawerOpenedAt = 0;
 
 export const SideNavigation = ({
   visible,
@@ -40,9 +43,11 @@ export const SideNavigation = ({
   onNavigate,
   onAddAccount,
   onSwitchAccount,
+  onSelectProfile = null,
 }) => {
   const [mounted, setMounted] = useState(visible);
   const [sheetVisible, setSheetVisible] = useState(false);
+  const [followListMode, setFollowListMode] = useState(null);
   const insets = useSafeAreaInsets();
   const knownUsers = useAppStore((state) => state.knownUsers);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -86,6 +91,7 @@ export const SideNavigation = ({
   useEffect(() => {
     if (visible) {
       setMounted(true);
+      lastDrawerOpenedAt = Date.now();
       Animated.parallel([
         Animated.timing(translateX, {
           toValue: 0,
@@ -115,12 +121,20 @@ export const SideNavigation = ({
     ]).start(() => setMounted(false));
   }, [overlayOpacity, translateX, visible]);
 
+  const handleOverlayPress = () => {
+    if (Date.now() - lastDrawerOpenedAt < OPEN_GUARD_MS) {
+      return;
+    }
+
+    onClose?.();
+  };
+
   const menuItems = useMemo(
     () => [
       { key: 'profile', label: 'Profile', icon: UserRound, route: 'profile' },
-      { key: 'premium', label: 'Premium', icon: BadgeCheck },
+      { key: 'premium', label: 'Premium', icon: BadgeCheck, route: 'premium' },
       { key: 'video', label: 'Video', icon: Clapperboard },
-      { key: 'communities', label: 'Communities', icon: UsersRound },
+      { key: 'communities', label: 'Communities', icon: UsersRound, route: 'communities' },
       { key: 'bookmarks', label: 'Bookmarks', icon: Bookmark, route: 'bookmarks' },
       { key: 'lists', label: 'Lists', icon: ClipboardList },
       { key: 'spaces', label: 'Spaces', icon: AudioLines },
@@ -164,7 +178,7 @@ export const SideNavigation = ({
     <Modal visible={mounted} transparent animationType="none" onRequestClose={onClose}>
       <View style={styles.root}>
         <Animated.View style={[styles.overlay, { opacity: overlayOpacity }]}>
-          <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+          <Pressable style={StyleSheet.absoluteFill} onPress={handleOverlayPress} />
         </Animated.View>
 
         <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}> 
@@ -215,12 +229,16 @@ export const SideNavigation = ({
               <Text style={styles.username}>{currentUser?.username || '@user'}</Text>
 
               <View style={styles.statsRow}>
-                <Text style={styles.statText}>
-                  <Text style={styles.statValue}>{currentUser?.following || 0}</Text> Following
-                </Text>
-                <Text style={styles.statText}>
-                  <Text style={styles.statValue}>{currentUser?.followers || 0}</Text> Followers
-                </Text>
+                <TouchableOpacity onPress={() => setFollowListMode('following')}>
+                  <Text style={styles.statText}>
+                    <Text style={styles.statValue}>{currentUser?.following || 0}</Text> Following
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => setFollowListMode('followers')}>
+                  <Text style={styles.statText}>
+                    <Text style={styles.statValue}>{currentUser?.followers || 0}</Text> Followers
+                  </Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
 
@@ -335,6 +353,23 @@ export const SideNavigation = ({
             </Animated.View>
           </>
         ) : null}
+
+        <FollowListModal
+          visible={Boolean(followListMode)}
+          mode={followListMode}
+          userId={currentUser?.id}
+          onClose={() => setFollowListMode(null)}
+          onSelectProfile={(userId) => {
+            setFollowListMode(null);
+            onClose?.();
+            if (onSelectProfile) {
+              onSelectProfile(userId);
+            } else {
+              // Fallback: navigate to profile screen
+              onNavigate?.('profile');
+            }
+          }}
+        />
       </View>
     </Modal>
   );

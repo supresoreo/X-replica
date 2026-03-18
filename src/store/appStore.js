@@ -121,6 +121,8 @@ const normalizeUser = (user, existingUser = null) => {
   );
   const followerIds = uniqueStrings(user.followerIds || existingUser?.followerIds || []);
   const followingIds = uniqueStrings(user.followingIds || existingUser?.followingIds || []);
+  const hasFollowerIds = Array.isArray(user.followerIds) || Array.isArray(existingUser?.followerIds);
+  const hasFollowingIds = Array.isArray(user.followingIds) || Array.isArray(existingUser?.followingIds);
 
   return {
     id: user.id || user._id || user.userId || existingUser?.id || Date.now().toString(),
@@ -132,8 +134,12 @@ const normalizeUser = (user, existingUser = null) => {
     bio: user.bio || existingUser?.bio || '',
     location: user.location || existingUser?.location || '',
     website: user.website || existingUser?.website || '',
-    followers: followerIds.length || toNumber(user.followers || existingUser?.followers),
-    following: followingIds.length || toNumber(user.following || existingUser?.following),
+    followers: hasFollowerIds
+      ? followerIds.length
+      : toNumber(user.followers ?? existingUser?.followers),
+    following: hasFollowingIds
+      ? followingIds.length
+      : toNumber(user.following ?? existingUser?.following),
     followerIds,
     followingIds,
     tweets: toNumber(user.tweets || existingUser?.tweets),
@@ -143,6 +149,56 @@ const normalizeUser = (user, existingUser = null) => {
     birthday: user.birthday || existingUser?.birthday || '',
     createdAt: user.createdAt || existingUser?.createdAt || new Date().toISOString(),
   };
+};
+
+const reconcileKnownUsers = (users = []) => {
+  const usersById = new Map();
+
+  users.forEach((user) => {
+    const normalized = normalizeUser(user);
+    if (!normalized?.id) {
+      return;
+    }
+
+    usersById.set(normalized.id, {
+      ...normalized,
+      followerIds: uniqueStrings(normalized.followerIds),
+      followingIds: uniqueStrings(normalized.followingIds),
+    });
+  });
+
+  const knownIds = new Set(usersById.keys());
+
+  usersById.forEach((user) => {
+    user.followerIds = user.followerIds.filter((id) => knownIds.has(id));
+    user.followingIds = user.followingIds.filter((id) => knownIds.has(id));
+  });
+
+  usersById.forEach((user) => {
+    user.followingIds.forEach((targetId) => {
+      const target = usersById.get(targetId);
+      if (!target) {
+        return;
+      }
+
+      target.followerIds = uniqueStrings([...target.followerIds, user.id]);
+    });
+
+    user.followerIds.forEach((followerId) => {
+      const follower = usersById.get(followerId);
+      if (!follower) {
+        return;
+      }
+
+      follower.followingIds = uniqueStrings([...follower.followingIds, user.id]);
+    });
+  });
+
+  return Array.from(usersById.values()).map((user) => ({
+    ...user,
+    followers: user.followerIds.length,
+    following: user.followingIds.length,
+  }));
 };
 
 const mergeUsers = (...collections) => {
@@ -208,22 +264,32 @@ const buildPersistedState = (state) => {
 
 const buildAccountState = (state) => {
   return JSON.stringify({
+    authoredTweets: state.authoredTweets,
     tweets: state.tweets,
     bookmarks: state.bookmarks,
     conversations: state.conversations,
     messages: state.messages,
+    notifications: state.notifications,
+    mutedNotifications: state.mutedNotifications,
+    unreadMessages: state.unreadMessages,
     searchQuery: state.searchQuery,
     searchResults: state.searchResults,
+    searchHistory: state.searchHistory,
   });
 };
 
 const defaultAccountState = () => ({
+  authoredTweets: [],
   tweets: [],
   bookmarks: [],
   conversations: [],
   messages: {},
+  notifications: [],
+  mutedNotifications: [],
+  unreadMessages: {},
   searchQuery: '',
   searchResults: { users: [], tweets: [] },
+  searchHistory: [],
 });
 
 const getAccountStateKey = (userId) => `${ACCOUNT_STATE_KEY_PREFIX}${userId}`;
@@ -271,6 +337,7 @@ const loadAccountState = async (userId) => {
       ...defaultAccountState(),
       ...parsed,
       searchResults: parsed?.searchResults || { users: [], tweets: [] },
+      searchHistory: parsed?.searchHistory || [],
     };
   } catch {
     return defaultAccountState();
@@ -289,6 +356,180 @@ const updateTweetAuthor = (tweet, user) => {
   };
 };
 
+const sortNotifications = (notifications = []) => {
+  return [...notifications].sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
+};
+
+const createNotification = ({ type, actor, targetUserId, tweet = null, message = '' }) => {
+  return {
+    id: `${targetUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    type,
+    actorId: actor?.id || '',
+    actorDisplayName: actor?.displayName || 'User',
+    actorUsername: actor?.username || '@user',
+    actorAvatar: actor?.avatar || 'U',
+    actorAvatarImage: actor?.avatarImage || '',
+    actorAverageColor: actor?.averageColor || '#000000',
+    targetUserId,
+    tweetId: tweet?.id || null,
+    tweetPreview: tweet?.content ? tweet.content.slice(0, 120) : '',
+    message,
+    read: false,
+    createdAt: new Date().toISOString(),
+  };
+};
+
+const appendNotificationForUser = async (targetUserId, notification) => {
+  if (!targetUserId || !notification) {
+    return;
+  }
+
+  const targetState = await loadAccountState(targetUserId);
+  const nextNotifications = sortNotifications([notification, ...(targetState.notifications || [])]);
+
+  await persistAccountState(targetUserId, {
+    ...defaultAccountState(),
+    ...targetState,
+    notifications: nextNotifications,
+  });
+};
+
+const getIsoTimestamp = (value) => {
+  if (typeof value === 'string' && !Number.isNaN(Date.parse(value))) {
+    return new Date(value).toISOString();
+  }
+
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return new Date(value).toISOString();
+  }
+
+  return null;
+};
+
+const formatTweetTime = (createdAt) => {
+  const parsed = Date.parse(createdAt || '');
+  if (Number.isNaN(parsed)) {
+    return 'Now';
+  }
+
+  const diffMs = Date.now() - parsed;
+  const clampedDiffMs = diffMs < 0 ? 0 : diffMs;
+  const diffMinutes = Math.floor(clampedDiffMs / 60000);
+
+  if (diffMinutes < 1) {
+    return 'Now';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays}d`;
+  }
+
+  return new Date(parsed).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
+const normalizeTweet = (tweet, author = null) => {
+  if (!tweet) {
+    return null;
+  }
+
+  const fromId = getIsoTimestamp(Number(tweet.id));
+  const createdAt =
+    getIsoTimestamp(tweet.createdAt) ||
+    getIsoTimestamp(tweet.timestamp) ||
+    fromId ||
+    new Date().toISOString();
+
+  return {
+    ...tweet,
+    id: tweet.id || `${author?.id || 'tweet'}-${Date.now()}`,
+    userId: tweet.userId || author?.id || '',
+    username: tweet.username || author?.username || '@user',
+    displayName: tweet.displayName || author?.displayName || 'User',
+    avatar: tweet.avatar || author?.avatar || 'U',
+    avatarImage: tweet.avatarImage || author?.avatarImage || '',
+    averageColor: tweet.averageColor || author?.averageColor || '#000000',
+    createdAt,
+    timestamp: formatTweetTime(createdAt),
+    likes: toNumber(tweet.likes),
+    retweets: toNumber(tweet.retweets),
+    replies: toNumber(tweet.replies),
+    isLiked: Boolean(tweet.isLiked),
+    isRetweeted: Boolean(tweet.isRetweeted),
+    isBookmarked: Boolean(tweet.isBookmarked),
+  };
+};
+
+const dedupeAndSortTweets = (tweets) => {
+  const tweetsById = new Map();
+
+  tweets.forEach((tweet) => {
+    const normalized = normalizeTweet(tweet);
+    if (!normalized?.id) {
+      return;
+    }
+
+    const existing = tweetsById.get(normalized.id);
+    if (!existing) {
+      tweetsById.set(normalized.id, normalized);
+      return;
+    }
+
+    const existingTime = Date.parse(existing.createdAt || '');
+    const nextTime = Date.parse(normalized.createdAt || '');
+    if (Number.isNaN(existingTime) || nextTime >= existingTime) {
+      tweetsById.set(normalized.id, { ...existing, ...normalized });
+    }
+  });
+
+  return Array.from(tweetsById.values()).sort((a, b) => {
+    return Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '');
+  });
+};
+
+const getAuthoredTweets = (accountState, userId, knownUsers) => {
+  const author = resolveCurrentUser(knownUsers, userId);
+  const sourceTweets = Array.isArray(accountState?.authoredTweets)
+    ? accountState.authoredTweets
+    : (accountState?.tweets || []).filter((tweet) => tweet.userId === userId);
+
+  return dedupeAndSortTweets(sourceTweets.map((tweet) => normalizeTweet(tweet, author)));
+};
+
+const loadComposedAccountState = async (userId, knownUsers) => {
+  const baseAccountState = await loadAccountState(userId);
+  const currentUser = resolveCurrentUser(knownUsers, userId);
+  const authoredTweets = getAuthoredTweets(baseAccountState, userId, knownUsers);
+  const followingIds = uniqueStrings(currentUser?.followingIds || []);
+
+  const followingAccountStates = await Promise.all(
+    followingIds.map((followedUserId) => loadAccountState(followedUserId))
+  );
+
+  const followingTweets = followingAccountStates.flatMap((accountState, index) => {
+    const followedUserId = followingIds[index];
+    return getAuthoredTweets(accountState, followedUserId, knownUsers);
+  });
+
+  return {
+    ...baseAccountState,
+    authoredTweets,
+    tweets: dedupeAndSortTweets([...authoredTweets, ...followingTweets]),
+  };
+};
+
 export const useAppStore = create((set, get) => ({
   currentUser: null,
   currentUserId: null,
@@ -299,14 +540,117 @@ export const useAppStore = create((set, get) => ({
   authLoading: false,
   authError: '',
 
+  authoredTweets: [],
   tweets: [],
   bookmarks: [],
   conversations: [],
   messages: {},
+  notifications: [],
+  mutedNotifications: [],
+  unreadMessages: {},
   searchQuery: '',
   searchResults: {
     users: [],
     tweets: [],
+  },
+  searchHistory: [],
+
+  getUnreadNotificationCount: () => {
+    return (get().notifications || []).filter((entry) => !entry.read).length;
+  },
+
+  markNotificationsAsRead: async () => {
+    const state = get();
+    if (!state.currentUserId || !state.notifications.some((entry) => !entry.read)) {
+      return;
+    }
+
+    const nextState = {
+      notifications: state.notifications.map((entry) => ({ ...entry, read: true })),
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    await persistAccountState(mergedState.currentUserId, mergedState);
+  },
+
+  getUnreadMessageCount: () => {
+    const unreadMessages = get().unreadMessages || {};
+    return Object.values(unreadMessages).reduce((total, count) => total + (count || 0), 0);
+  },
+
+  markMessagesAsRead: async (conversationId) => {
+    const state = get();
+    if (!conversationId || !state.unreadMessages[conversationId]) {
+      return;
+    }
+
+    const nextUnreadMessages = { ...state.unreadMessages };
+    delete nextUnreadMessages[conversationId];
+
+    const nextState = {
+      unreadMessages: nextUnreadMessages,
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    if (state.currentUserId) {
+      await persistAccountState(state.currentUserId, mergedState);
+    }
+  },
+
+  markAllMessagesAsRead: async () => {
+    const state = get();
+    if (!state.currentUserId || !Object.keys(state.unreadMessages || {}).length) {
+      return;
+    }
+
+    const nextState = {
+      unreadMessages: {},
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    await persistAccountState(mergedState.currentUserId, mergedState);
+  },
+
+  isNotificationMutedForUser: (userId) => {
+    return get().mutedNotifications.includes(userId);
+  },
+
+  muteNotificationsForUser: async (userId) => {
+    const state = get();
+    if (!userId || state.mutedNotifications.includes(userId)) {
+      return;
+    }
+
+    const nextMutedNotifications = [...state.mutedNotifications, userId];
+    set({ mutedNotifications: nextMutedNotifications });
+
+    const mergedState = { ...get() };
+    await persistLocalState(mergedState);
+    if (state.currentUserId) {
+      await persistAccountState(state.currentUserId, mergedState);
+    }
+  },
+
+  unmuteNotificationsForUser: async (userId) => {
+    const state = get();
+    if (!userId || !state.mutedNotifications.includes(userId)) {
+      return;
+    }
+
+    const nextMutedNotifications = state.mutedNotifications.filter((id) => id !== userId);
+    set({ mutedNotifications: nextMutedNotifications });
+
+    const mergedState = { ...get() };
+    await persistLocalState(mergedState);
+    if (state.currentUserId) {
+      await persistAccountState(state.currentUserId, mergedState);
+    }
   },
 
   hydrateAuth: async () => {
@@ -316,7 +660,9 @@ export const useAppStore = create((set, get) => ({
         loadPersistedState(),
       ]);
 
-      const knownUsers = mergeUsers(SEED_USERS, persistedState?.knownUsers || []);
+      const knownUsers = reconcileKnownUsers(
+        mergeUsers(SEED_USERS, persistedState?.knownUsers || [])
+      );
       const deviceAccounts = persistedState?.deviceAccounts || [];
       const currentUserId = persistedState?.currentUserId || deviceAccounts[0]?.userId || null;
       const fallbackUser = resolveCurrentUser(knownUsers, currentUserId);
@@ -324,15 +670,23 @@ export const useAppStore = create((set, get) => ({
       const authToken = persistedToken || currentAccount?.token || null;
 
       if (!authToken || !fallbackUser) {
+        const accountState = await loadComposedAccountState(currentUserId, knownUsers);
         set({
           knownUsers,
           deviceAccounts,
           currentUserId,
           currentUser: fallbackUser,
-          tweets: persistedState?.tweets || [],
-          bookmarks: persistedState?.bookmarks || [],
-          conversations: persistedState?.conversations || [],
-          messages: persistedState?.messages || {},
+          authoredTweets: accountState.authoredTweets,
+          tweets: accountState.tweets,
+          bookmarks: accountState.bookmarks,
+          conversations: accountState.conversations,
+          messages: accountState.messages,
+          notifications: accountState.notifications,
+          mutedNotifications: accountState.mutedNotifications,
+          unreadMessages: accountState.unreadMessages,
+          searchQuery: accountState.searchQuery,
+          searchResults: accountState.searchResults,
+          searchHistory: accountState.searchHistory,
         });
         return;
       }
@@ -355,14 +709,11 @@ export const useAppStore = create((set, get) => ({
         authToken,
         currentUserId: nextCurrentUser.id,
         currentUser: nextCurrentUser,
-        knownUsers: nextKnownUsers,
+        knownUsers: reconcileKnownUsers(nextKnownUsers),
         deviceAccounts,
         isAuthenticated: true,
         authError: '',
-        tweets: persistedState?.tweets || [],
-        bookmarks: persistedState?.bookmarks || [],
-        conversations: persistedState?.conversations || [],
-        messages: persistedState?.messages || {},
+        ...(await loadComposedAccountState(nextCurrentUser.id, reconcileKnownUsers(nextKnownUsers))),
       };
 
       set(nextState);
@@ -380,6 +731,60 @@ export const useAppStore = create((set, get) => ({
   },
 
   clearAuthError: () => set({ authError: '' }),
+
+  refreshAppData: async () => {
+    const state = get();
+    if (!state.currentUserId) {
+      return { ok: false };
+    }
+
+    let nextKnownUsers = state.knownUsers;
+
+    if (state.isAuthenticated && state.authToken) {
+      setApiAuthToken(state.authToken);
+
+      try {
+        const meResponse = await authService.me();
+        const remoteUser = normalizeUser(meResponse?.user || meResponse);
+        nextKnownUsers = reconcileKnownUsers(upsertUser(state.knownUsers, remoteUser));
+      } catch {
+        nextKnownUsers = reconcileKnownUsers(state.knownUsers);
+      }
+    } else {
+      nextKnownUsers = reconcileKnownUsers(state.knownUsers);
+    }
+
+    const nextCurrentUser = resolveCurrentUser(nextKnownUsers, state.currentUserId);
+    const accountState = await loadComposedAccountState(state.currentUserId, nextKnownUsers);
+
+    const nextState = {
+      knownUsers: nextKnownUsers,
+      currentUser: nextCurrentUser,
+      authoredTweets: accountState.authoredTweets,
+      tweets: accountState.tweets,
+      bookmarks: accountState.bookmarks,
+      conversations: accountState.conversations,
+      messages: accountState.messages,
+      notifications: accountState.notifications,
+      mutedNotifications: accountState.mutedNotifications,
+      unreadMessages: accountState.unreadMessages,
+      searchQuery: accountState.searchQuery,
+      searchResults: accountState.searchResults,
+      searchHistory: accountState.searchHistory,
+    };
+
+    set(nextState);
+
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    await persistAccountState(mergedState.currentUserId, mergedState);
+
+    if (mergedState.searchQuery?.trim()) {
+      await get().setSearchQuery(mergedState.searchQuery);
+    }
+
+    return { ok: true };
+  },
 
   login: async ({ email, password }) => {
     set({ authLoading: true, authError: '' });
@@ -399,13 +804,13 @@ export const useAppStore = create((set, get) => ({
       setApiAuthToken(token);
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
 
-      const nextKnownUsers = upsertUser(get().knownUsers, mappedUser);
+      const nextKnownUsers = reconcileKnownUsers(upsertUser(get().knownUsers, mappedUser));
       const nextDeviceAccounts = upsertDeviceAccount(get().deviceAccounts, {
         userId: mappedUser.id,
         email: mappedUser.email,
         token,
       });
-      const accountState = await loadAccountState(mappedUser.id);
+      const accountState = await loadComposedAccountState(mappedUser.id, nextKnownUsers);
 
       const nextState = {
         authLoading: false,
@@ -416,12 +821,17 @@ export const useAppStore = create((set, get) => ({
         deviceAccounts: nextDeviceAccounts,
         isAuthenticated: true,
         authError: '',
+        authoredTweets: accountState.authoredTweets,
         tweets: accountState.tweets,
         bookmarks: accountState.bookmarks,
         conversations: accountState.conversations,
         messages: accountState.messages,
+        notifications: accountState.notifications,
+        mutedNotifications: accountState.mutedNotifications,
+        unreadMessages: accountState.unreadMessages,
         searchQuery: accountState.searchQuery,
         searchResults: accountState.searchResults,
+        searchHistory: accountState.searchHistory,
       };
 
       set(nextState);
@@ -474,13 +884,13 @@ export const useAppStore = create((set, get) => ({
       setApiAuthToken(token);
       await AsyncStorage.setItem(AUTH_TOKEN_KEY, token);
 
-      const nextKnownUsers = upsertUser(get().knownUsers, mappedUser);
+      const nextKnownUsers = reconcileKnownUsers(upsertUser(get().knownUsers, mappedUser));
       const nextDeviceAccounts = upsertDeviceAccount(get().deviceAccounts, {
         userId: mappedUser.id,
         email: mappedUser.email,
         token,
       });
-      const accountState = await loadAccountState(mappedUser.id);
+      const accountState = await loadComposedAccountState(mappedUser.id, nextKnownUsers);
 
       const nextState = {
         authLoading: false,
@@ -491,12 +901,17 @@ export const useAppStore = create((set, get) => ({
         deviceAccounts: nextDeviceAccounts,
         isAuthenticated: true,
         authError: '',
+        authoredTweets: accountState.authoredTweets,
         tweets: accountState.tweets,
         bookmarks: accountState.bookmarks,
         conversations: accountState.conversations,
         messages: accountState.messages,
+        notifications: accountState.notifications,
+        mutedNotifications: accountState.mutedNotifications,
+        unreadMessages: accountState.unreadMessages,
         searchQuery: accountState.searchQuery,
         searchResults: accountState.searchResults,
+        searchHistory: accountState.searchHistory,
       };
 
       set(nextState);
@@ -526,7 +941,7 @@ export const useAppStore = create((set, get) => ({
 
     setApiAuthToken(targetAccount.token);
     await AsyncStorage.setItem(AUTH_TOKEN_KEY, targetAccount.token);
-    const accountState = await loadAccountState(targetUser.id);
+    const accountState = await loadComposedAccountState(targetUser.id, state.knownUsers);
 
     const nextDeviceAccounts = upsertDeviceAccount(state.deviceAccounts, targetAccount);
     const nextState = {
@@ -536,12 +951,17 @@ export const useAppStore = create((set, get) => ({
       deviceAccounts: nextDeviceAccounts,
       isAuthenticated: true,
       authError: '',
+      authoredTweets: accountState.authoredTweets,
       tweets: accountState.tweets,
       bookmarks: accountState.bookmarks,
       conversations: accountState.conversations,
       messages: accountState.messages,
+      notifications: accountState.notifications,
+      mutedNotifications: accountState.mutedNotifications,
+      unreadMessages: accountState.unreadMessages,
       searchQuery: accountState.searchQuery,
       searchResults: accountState.searchResults,
+      searchHistory: accountState.searchHistory,
     };
 
     set(nextState);
@@ -561,13 +981,55 @@ export const useAppStore = create((set, get) => ({
       authToken: null,
       isAuthenticated: false,
       authError: '',
+      authoredTweets: [],
       tweets: [],
+      notifications: [],
+      mutedNotifications: [],
       searchQuery: '',
+      searchHistory: [],
       searchResults: {
         users: [],
         tweets: [],
       },
     });
+  },
+
+  addSearchHistoryEntry: async (query) => {
+    const state = get();
+    const normalized = query.trim();
+    if (!normalized) {
+      return;
+    }
+
+    const deduped = [
+      normalized,
+      ...(state.searchHistory || []).filter(
+        (entry) => entry.toLowerCase() !== normalized.toLowerCase()
+      ),
+    ].slice(0, 20);
+
+    const nextState = { searchHistory: deduped };
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    if (mergedState.currentUserId) {
+      await persistAccountState(mergedState.currentUserId, mergedState);
+    }
+  },
+
+  clearSearchHistory: async () => {
+    const state = get();
+    if (!(state.searchHistory || []).length) {
+      return;
+    }
+
+    const nextState = { searchHistory: [] };
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    if (mergedState.currentUserId) {
+      await persistAccountState(mergedState.currentUserId, mergedState);
+    }
   },
 
   addTweet: (content) => {
@@ -582,7 +1044,7 @@ export const useAppStore = create((set, get) => ({
     };
 
     const newTweet = {
-      id: Date.now().toString(),
+      id: `${updatedAuthor.id}-${Date.now()}`,
       userId: updatedAuthor.id,
       username: updatedAuthor.username,
       displayName: updatedAuthor.displayName,
@@ -590,7 +1052,7 @@ export const useAppStore = create((set, get) => ({
       avatarImage: updatedAuthor.avatarImage,
       averageColor: updatedAuthor.averageColor,
       content,
-      timestamp: 'Just now',
+      createdAt: new Date().toISOString(),
       likes: 0,
       retweets: 0,
       replies: 0,
@@ -599,9 +1061,14 @@ export const useAppStore = create((set, get) => ({
       isBookmarked: false,
     };
 
-    const nextKnownUsers = upsertUser(state.knownUsers, updatedAuthor);
+    const normalizedTweet = normalizeTweet(newTweet, updatedAuthor);
+    const nextAuthoredTweets = dedupeAndSortTweets([normalizedTweet, ...(state.authoredTweets || [])]);
+    const nextTimelineTweets = dedupeAndSortTweets([normalizedTweet, ...state.tweets]);
+
+    const nextKnownUsers = reconcileKnownUsers(upsertUser(state.knownUsers, updatedAuthor));
     const nextState = {
-      tweets: [newTweet, ...state.tweets],
+      authoredTweets: nextAuthoredTweets,
+      tweets: nextTimelineTweets,
       knownUsers: nextKnownUsers,
       currentUser: updatedAuthor,
     };
@@ -612,58 +1079,148 @@ export const useAppStore = create((set, get) => ({
     persistAccountState(mergedState.currentUserId, mergedState);
   },
 
+  replyTweet: (id) => {
+    const state = get();
+    const actor = state.currentUser;
+    if (!actor) {
+      return;
+    }
+
+    const targetTweet = state.tweets.find((tweet) => tweet.id === id);
+    if (!targetTweet) {
+      return;
+    }
+
+    const nextState = {
+      tweets: state.tweets.map((tweet) =>
+        tweet.id === id
+          ? {
+              ...tweet,
+              replies: (tweet.replies || 0) + 1,
+            }
+          : tweet
+      ),
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
+
+    if (targetTweet.userId && targetTweet.userId !== actor.id) {
+      appendNotificationForUser(
+        targetTweet.userId,
+        createNotification({ type: 'reply', actor, targetUserId: targetTweet.userId, tweet: targetTweet })
+      );
+    }
+  },
+
   likeTweet: (id) => {
-    set((state) => {
-      const nextState = {
-        tweets: state.tweets.map((tweet) =>
-          tweet.id === id
-            ? {
-                ...tweet,
-                isLiked: !tweet.isLiked,
-                likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
-              }
-            : tweet
-        ),
-      };
-      const mergedState = { ...state, ...nextState };
-      persistLocalState(mergedState);
-      persistAccountState(mergedState.currentUserId, mergedState);
-      return nextState;
-    });
+    const state = get();
+    const actor = state.currentUser;
+    if (!actor) {
+      return;
+    }
+
+    const targetTweet = state.tweets.find((tweet) => tweet.id === id);
+    if (!targetTweet) {
+      return;
+    }
+
+    const willLike = !targetTweet.isLiked;
+    const nextState = {
+      tweets: state.tweets.map((tweet) =>
+        tweet.id === id
+          ? {
+              ...tweet,
+              isLiked: !tweet.isLiked,
+              likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
+            }
+          : tweet
+      ),
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
+
+    if (willLike && targetTweet.userId && targetTweet.userId !== actor.id) {
+      appendNotificationForUser(
+        targetTweet.userId,
+        createNotification({ type: 'like', actor, targetUserId: targetTweet.userId, tweet: targetTweet })
+      );
+    }
   },
 
   retweetTweet: (id) => {
-    set((state) => {
-      const nextState = {
-        tweets: state.tweets.map((tweet) =>
-          tweet.id === id
-            ? {
-                ...tweet,
-                isRetweeted: !tweet.isRetweeted,
-                retweets: tweet.isRetweeted ? tweet.retweets - 1 : tweet.retweets + 1,
-              }
-            : tweet
-        ),
-      };
-      const mergedState = { ...state, ...nextState };
-      persistLocalState(mergedState);
-      persistAccountState(mergedState.currentUserId, mergedState);
-      return nextState;
-    });
+    const state = get();
+    const actor = state.currentUser;
+    if (!actor) {
+      return;
+    }
+
+    const targetTweet = state.tweets.find((tweet) => tweet.id === id);
+    if (!targetTweet) {
+      return;
+    }
+
+    const willRepost = !targetTweet.isRetweeted;
+    const nextState = {
+      tweets: state.tweets.map((tweet) =>
+        tweet.id === id
+          ? {
+              ...tweet,
+              isRetweeted: !tweet.isRetweeted,
+              retweets: tweet.isRetweeted ? tweet.retweets - 1 : tweet.retweets + 1,
+            }
+          : tweet
+      ),
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
+
+    if (willRepost && targetTweet.userId && targetTweet.userId !== actor.id) {
+      appendNotificationForUser(
+        targetTweet.userId,
+        createNotification({ type: 'repost', actor, targetUserId: targetTweet.userId, tweet: targetTweet })
+      );
+    }
   },
 
   bookmarkTweet: (id) => {
-    set((state) => {
-      const nextState = {
-        tweets: state.tweets.map((tweet) =>
-          tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
-        ),
-      };
-      const mergedState = { ...state, ...nextState };
-      persistLocalState(mergedState);
-      persistAccountState(mergedState.currentUserId, mergedState);
-      return nextState;
-    });
+    const state = get();
+    const actor = state.currentUser;
+    if (!actor) {
+      return;
+    }
+
+    const targetTweet = state.tweets.find((tweet) => tweet.id === id);
+    if (!targetTweet) {
+      return;
+    }
+
+    const willBookmark = !targetTweet.isBookmarked;
+    const nextState = {
+      tweets: state.tweets.map((tweet) =>
+        tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
+      ),
+    };
+
+    set(nextState);
+    const mergedState = { ...get(), ...nextState };
+    persistLocalState(mergedState);
+    persistAccountState(mergedState.currentUserId, mergedState);
+
+    if (willBookmark && targetTweet.userId && targetTweet.userId !== actor.id) {
+      appendNotificationForUser(
+        targetTweet.userId,
+        createNotification({ type: 'bookmark', actor, targetUserId: targetTweet.userId, tweet: targetTweet })
+      );
+    }
   },
 
   updateUserProfile: (updates) => {
@@ -680,7 +1237,7 @@ export const useAppStore = create((set, get) => ({
       state.currentUser
     );
 
-    const nextKnownUsers = upsertUser(state.knownUsers, updatedCurrentUser);
+    const nextKnownUsers = reconcileKnownUsers(upsertUser(state.knownUsers, updatedCurrentUser));
     const nextTweets = state.tweets.map((tweet) => {
       if (tweet.userId === state.currentUser.id || tweet.username === state.currentUser.username) {
         return updateTweetAuthor(tweet, updatedCurrentUser);
@@ -689,9 +1246,16 @@ export const useAppStore = create((set, get) => ({
       return tweet;
     });
 
+    const nextAuthoredTweets = (state.authoredTweets || []).map((tweet) =>
+      tweet.userId === state.currentUser.id || tweet.username === state.currentUser.username
+        ? updateTweetAuthor(tweet, updatedCurrentUser)
+        : tweet
+    );
+
     const nextState = {
       currentUser: updatedCurrentUser,
       knownUsers: nextKnownUsers,
+      authoredTweets: nextAuthoredTweets,
       tweets: nextTweets,
     };
 
@@ -730,7 +1294,7 @@ export const useAppStore = create((set, get) => ({
       .filter(Boolean);
   },
 
-  followUser: (targetUserId) => {
+  followUser: async (targetUserId) => {
     const state = get();
     const currentUser = state.currentUser;
     const targetUser = state.knownUsers.find((user) => user.id === targetUserId);
@@ -760,19 +1324,38 @@ export const useAppStore = create((set, get) => ({
       targetUser
     );
 
-    const nextKnownUsers = updateUsers(state.knownUsers, [updatedCurrentUser, updatedTargetUser]);
+    const nextKnownUsers = reconcileKnownUsers(
+      updateUsers(state.knownUsers, [updatedCurrentUser, updatedTargetUser])
+    );
     const nextState = {
       knownUsers: nextKnownUsers,
       currentUser: updatedCurrentUser,
     };
 
     set(nextState);
-    const mergedState = { ...get(), ...nextState };
+    const composedAccountState = await loadComposedAccountState(updatedCurrentUser.id, nextKnownUsers);
+    set({ authoredTweets: composedAccountState.authoredTweets, tweets: composedAccountState.tweets });
+    const mergedState = {
+      ...get(),
+      ...nextState,
+      authoredTweets: composedAccountState.authoredTweets,
+      tweets: composedAccountState.tweets,
+    };
     persistLocalState(mergedState);
     persistAccountState(mergedState.currentUserId, mergedState);
+
+    appendNotificationForUser(
+      targetUserId,
+      createNotification({
+        type: 'follow',
+        actor: updatedCurrentUser,
+        targetUserId,
+        message: `${updatedCurrentUser.displayName} followed you`,
+      })
+    );
   },
 
-  unfollowUser: (targetUserId) => {
+  unfollowUser: async (targetUserId) => {
     const state = get();
     const currentUser = state.currentUser;
     const targetUser = state.knownUsers.find((user) => user.id === targetUserId);
@@ -800,14 +1383,23 @@ export const useAppStore = create((set, get) => ({
       targetUser
     );
 
-    const nextKnownUsers = updateUsers(state.knownUsers, [updatedCurrentUser, updatedTargetUser]);
+    const nextKnownUsers = reconcileKnownUsers(
+      updateUsers(state.knownUsers, [updatedCurrentUser, updatedTargetUser])
+    );
     const nextState = {
       knownUsers: nextKnownUsers,
       currentUser: updatedCurrentUser,
     };
 
     set(nextState);
-    const mergedState = { ...get(), ...nextState };
+    const composedAccountState = await loadComposedAccountState(updatedCurrentUser.id, nextKnownUsers);
+    set({ authoredTweets: composedAccountState.authoredTweets, tweets: composedAccountState.tweets });
+    const mergedState = {
+      ...get(),
+      ...nextState,
+      authoredTweets: composedAccountState.authoredTweets,
+      tweets: composedAccountState.tweets,
+    };
     persistLocalState(mergedState);
     persistAccountState(mergedState.currentUserId, mergedState);
   },
@@ -842,6 +1434,67 @@ export const useAppStore = create((set, get) => ({
     const mergedState = { ...get(), ...nextState };
     persistLocalState(mergedState);
     persistAccountState(mergedState.currentUserId, mergedState);
+    
+    // Notify the recipient about the new message
+    get().recordUnreadMessage(conversationId, state.currentUser.id);
+  },
+
+  recordUnreadMessage: async (conversationId, senderId) => {
+    const state = get();
+    const senderUser = state.knownUsers.find((u) => u.id === senderId);
+    
+    if (!senderUser || !conversationId) {
+      return;
+    }
+
+    // Get the recipient's account state (conversationId is typically the recipientId)
+    const recipientState = await loadAccountState(conversationId);
+    const currentUnreadCount = recipientState.unreadMessages?.[senderId] || 0;
+    
+    const nextUnreadMessages = {
+      ...recipientState.unreadMessages,
+      [senderId]: currentUnreadCount + 1,
+    };
+
+    const updatedRecipientState = {
+      ...recipientState,
+      unreadMessages: nextUnreadMessages,
+    };
+
+    await persistAccountState(conversationId, updatedRecipientState);
+  },
+
+  getOrCreateConversation: (userId) => {
+    const state = get();
+    const knownUser = state.knownUsers.find((u) => u.id === userId);
+    if (!knownUser) {
+      return null;
+    }
+
+    const existingConversation = state.conversations.find(
+      (conv) => conv.id === userId || conv.userId === userId
+    );
+
+    if (existingConversation) {
+      return existingConversation;
+    }
+
+    // Create new conversation
+    const newConversation = {
+      id: userId,
+      userId,
+      displayName: knownUser.displayName,
+      lastMessage: 'No messages yet',
+      timestamp: 'Now',
+      unread: false,
+    };
+
+    const nextConversations = [newConversation, ...state.conversations];
+    set({ conversations: nextConversations });
+    const mergedState = { ...get() };
+    persistAccountState(state.currentUserId, mergedState);
+
+    return newConversation;
   },
 
   setSearchQuery: async (query) => {
@@ -854,14 +1507,6 @@ export const useAppStore = create((set, get) => ({
       set({ searchResults: { users: [], tweets: [] } });
       return;
     }
-
-    const tweetResults = state.tweets.filter((tweet) => {
-      return (
-        tweet.content.toLowerCase().includes(normalized) ||
-        tweet.username.toLowerCase().includes(normalized) ||
-        tweet.displayName.toLowerCase().includes(normalized)
-      );
-    });
 
     const localUserResults = state.knownUsers.filter((user) => {
       if (user.id === state.currentUserId) {
@@ -892,11 +1537,11 @@ export const useAppStore = create((set, get) => ({
     }
 
     const mergedUserResults = mergeUniqueUsers(localUserResults, remoteUserResults);
-    const nextKnownUsers = mergeUsers(get().knownUsers, remoteUserResults);
+    const nextKnownUsers = reconcileKnownUsers(mergeUsers(get().knownUsers, remoteUserResults));
 
     const nextState = {
       knownUsers: nextKnownUsers,
-      searchResults: { users: mergedUserResults, tweets: tweetResults },
+      searchResults: { users: mergedUserResults, tweets: [] },
     };
 
     set(nextState);

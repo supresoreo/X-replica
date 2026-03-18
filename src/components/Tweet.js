@@ -4,10 +4,46 @@ import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucid
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
+const formatTweetTime = (createdAt, fallback = '') => {
+  const parsed = Date.parse(createdAt || '');
+  if (Number.isNaN(parsed)) {
+    return fallback || 'Now';
+  }
+
+  const diffMs = Date.now() - parsed;
+  const clampedDiffMs = diffMs < 0 ? 0 : diffMs;
+  const diffMinutes = Math.floor(clampedDiffMs / 60000);
+
+  if (diffMinutes < 1) {
+    return 'Now';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m`;
+  }
+
+  const diffHours = Math.floor(diffMinutes / 60);
+  if (diffHours < 24) {
+    return `${diffHours}h`;
+  }
+
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays < 7) {
+    return `${diffDays}d`;
+  }
+
+  return new Date(parsed).toLocaleDateString(undefined, {
+    month: 'short',
+    day: 'numeric',
+  });
+};
+
 export const Tweet = ({ tweet, onPressProfile }) => {
+  const replyTweet = useAppStore((state) => state.replyTweet);
   const likeTweet = useAppStore((state) => state.likeTweet);
   const retweetTweet = useAppStore((state) => state.retweetTweet);
   const bookmarkTweet = useAppStore((state) => state.bookmarkTweet);
+  const timestampLabel = formatTweetTime(tweet.createdAt, tweet.timestamp);
 
   return (
     <View style={styles.container}>
@@ -27,7 +63,7 @@ export const Tweet = ({ tweet, onPressProfile }) => {
           <View style={styles.nameRow}>
             <Text style={styles.displayName}>{tweet.displayName}</Text>
             <Text style={styles.username}>{tweet.username}</Text>
-            <Text style={styles.timestamp}>· {tweet.timestamp}</Text>
+            <Text style={styles.timestamp}>· {timestampLabel}</Text>
           </View>
         </View>
       </TouchableOpacity>
@@ -35,7 +71,7 @@ export const Tweet = ({ tweet, onPressProfile }) => {
       <Text style={styles.content}>{tweet.content}</Text>
       
       <View style={styles.actions}>
-        <TouchableOpacity style={styles.actionButton}>
+        <TouchableOpacity style={styles.actionButton} onPress={() => replyTweet(tweet.id)}>
           <MessageCircle size={18} color="#536471" />
           <Text style={styles.actionCount}>{tweet.replies}</Text>
         </TouchableOpacity>

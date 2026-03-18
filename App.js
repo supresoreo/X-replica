@@ -16,6 +16,8 @@ import { MessagesScreen } from './src/screens/MessagesScreen';
 import { BookmarksScreen } from './src/screens/BookmarksScreen';
 import { GrokScreen } from './src/screens/GrokScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
+import { PremiumScreen } from './src/screens/PremiumScreen';
+import { CommunitiesScreen } from './src/screens/CommunitiesScreen';
 import { CreatePostModal } from './src/components/CreatePostModal';
 import { TabBar } from './src/components/TabBar';
 import { SideNavigation } from './src/components/SideNavigation';
@@ -109,38 +111,55 @@ function App() {
     setActiveTab('profile');
   };
 
+  const handleOpenDrawer = () => {
+    setShowSideNavigation(true);
+  };
+
   const renderScreen = () => {
     switch (activeTab) {
       case 'forYou':
         return (
           <ForYouScreen
             onCreatePost={() => setShowCreatePost(true)}
-            onOpenDrawer={() => setShowSideNavigation(true)}
+            onOpenDrawer={handleOpenDrawer}
             onOpenProfile={handleOpenProfileFromTweet}
           />
         );
       case 'search':
-        return <SearchScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return <SearchScreen onOpenDrawer={handleOpenDrawer} />;
       case 'grok':
-        return <GrokScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return <GrokScreen onOpenDrawer={handleOpenDrawer} />;
       case 'notifications':
-        return <NotificationsScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return <NotificationsScreen onOpenDrawer={handleOpenDrawer} />;
       case 'messages':
-        return <MessagesScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return <MessagesScreen onOpenDrawer={handleOpenDrawer} />;
       case 'profile':
         return (
           <ProfileScreen
-            onOpenDrawer={() => setShowSideNavigation(true)}
+            onOpenDrawer={handleOpenDrawer}
             profileUserId={selectedProfileUserId}
+            onSelectProfile={(userId, targetTab) => {
+              if (targetTab === 'messages') {
+                setSelectedProfileUserId(null);
+                setActiveTab('messages');
+              } else {
+                setSelectedProfileUserId(userId);
+                setActiveTab('profile');
+              }
+            }}
           />
         );
       case 'bookmarks':
-        return <BookmarksScreen onOpenDrawer={() => setShowSideNavigation(true)} />;
+        return <BookmarksScreen onOpenDrawer={handleOpenDrawer} />;
+      case 'premium':
+        return <PremiumScreen onOpenDrawer={handleOpenDrawer} />;
+      case 'communities':
+        return <CommunitiesScreen onOpenDrawer={handleOpenDrawer} />;
       default:
         return (
           <ForYouScreen
             onCreatePost={() => setShowCreatePost(true)}
-            onOpenDrawer={() => setShowSideNavigation(true)}
+            onOpenDrawer={handleOpenDrawer}
             onOpenProfile={handleOpenProfileFromTweet}
           />
         );
@@ -221,6 +240,10 @@ function App() {
             }
             setActiveTab(tab);
             setShowSideNavigation(false);
+          }}
+          onSelectProfile={(userId) => {
+            setSelectedProfileUserId(userId);
+            setActiveTab('profile');
           }}
         />
         <CreatePostModal

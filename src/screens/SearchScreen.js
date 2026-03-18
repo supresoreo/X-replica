@@ -1,27 +1,45 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { Search } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
-import { Tweet } from '../components/Tweet';
 import { AppHeader } from '../components/AppHeader';
 import { UserAvatar } from '../components/UserAvatar';
 
 export const SearchScreen = ({ onOpenDrawer }) => {
   const searchQuery = useAppStore((state) => state.searchQuery);
   const searchResults = useAppStore((state) => state.searchResults);
+  const searchHistory = useAppStore((state) => state.searchHistory);
   const setSearchQuery = useAppStore((state) => state.setSearchQuery);
+  const addSearchHistoryEntry = useAppStore((state) => state.addSearchHistoryEntry);
+  const clearSearchHistory = useAppStore((state) => state.clearSearchHistory);
   const isFollowingUser = useAppStore((state) => state.isFollowingUser);
   const followUser = useAppStore((state) => state.followUser);
   const unfollowUser = useAppStore((state) => state.unfollowUser);
   const [localQuery, setLocalQuery] = useState(searchQuery);
 
   const userResults = searchResults?.users || [];
-  const tweetResults = searchResults?.tweets || [];
-  const hasResults = userResults.length > 0 || tweetResults.length > 0;
+  const hasResults = userResults.length > 0;
+
+  useEffect(() => {
+    setLocalQuery(searchQuery || '');
+  }, [searchQuery]);
 
   const handleSearch = (text) => {
     setLocalQuery(text);
     setSearchQuery(text);
+  };
+
+  const handleSubmitSearch = () => {
+    if (!localQuery.trim()) {
+      return;
+    }
+
+    addSearchHistoryEntry(localQuery);
+  };
+
+  const handleSelectHistory = (query) => {
+    setLocalQuery(query);
+    setSearchQuery(query);
   };
 
   return (
@@ -36,6 +54,8 @@ export const SearchScreen = ({ onOpenDrawer }) => {
           placeholderTextColor="#536471"
           value={localQuery}
           onChangeText={handleSearch}
+          returnKeyType="search"
+          onSubmitEditing={handleSubmitSearch}
         />
       </View>
       
@@ -77,26 +97,37 @@ export const SearchScreen = ({ onOpenDrawer }) => {
                 })}
               </View>
             ) : null}
-
-            {tweetResults.length ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Posts</Text>
-                {tweetResults.map((tweet) => (
-                  <Tweet key={tweet.id} tweet={tweet} />
-                ))}
-              </View>
-            ) : null}
           </View>
         ) : localQuery.trim() !== '' ? (
           <View style={styles.emptyState}>
             <Text style={styles.emptyStateText}>No results found</Text>
+          </View>
+        ) : searchHistory?.length ? (
+          <View style={styles.section}>
+            <View style={styles.historyHeader}>
+              <Text style={styles.sectionTitle}>Recent searches</Text>
+              <TouchableOpacity onPress={clearSearchHistory} activeOpacity={0.8}>
+                <Text style={styles.clearHistoryText}>Clear</Text>
+              </TouchableOpacity>
+            </View>
+            {searchHistory.map((entry) => (
+              <TouchableOpacity
+                key={entry}
+                style={styles.historyRow}
+                activeOpacity={0.8}
+                onPress={() => handleSelectHistory(entry)}
+              >
+                <Search size={16} color="#536471" />
+                <Text style={styles.historyText}>{entry}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
         ) : (
           <View style={styles.emptyState}>
             <Search size={60} color="#536471" strokeWidth={1.5} />
             <Text style={styles.emptyStateTitle}>Search X</Text>
             <Text style={styles.emptyStateText}>
-              Find posts and accounts
+              Find people
             </Text>
           </View>
         )}
@@ -133,12 +164,37 @@ const styles = StyleSheet.create({
   section: {
     paddingTop: 6,
   },
+  historyHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingRight: 15,
+  },
+  clearHistoryText: {
+    color: '#1d9bf0',
+    fontSize: 14,
+    fontWeight: '600',
+  },
   sectionTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: '#0f1419',
     paddingHorizontal: 15,
     paddingBottom: 10,
+  },
+  historyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eff3f4',
+  },
+  historyText: {
+    color: '#0f1419',
+    fontSize: 15,
+    fontWeight: '500',
   },
   userRow: {
     flexDirection: 'row',

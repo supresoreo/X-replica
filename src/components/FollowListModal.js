@@ -11,7 +11,7 @@ import { X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
-export const FollowListModal = ({ visible, mode, userId, onClose }) => {
+export const FollowListModal = ({ visible, mode, userId, onClose, onSelectProfile = null }) => {
   const currentUser = useAppStore((state) => state.currentUser);
   const knownUsers = useAppStore((state) => state.knownUsers);
   const getFollowersForUser = useAppStore((state) => state.getFollowersForUser);
@@ -58,7 +58,15 @@ export const FollowListModal = ({ visible, mode, userId, onClose }) => {
               const isFollowing = isFollowingUser(user.id);
 
               return (
-                <View key={user.id} style={styles.userRow}>
+                <TouchableOpacity 
+                  key={user.id} 
+                  style={styles.userRow}
+                  onPress={() => {
+                    if (!isCurrentUser && onSelectProfile) {
+                      onSelectProfile(user.id);
+                    }
+                  }}
+                >
                   <UserAvatar
                     imageUri={user.avatarImage}
                     fallbackText={user.avatar || user.displayName?.charAt(0)}
@@ -77,14 +85,17 @@ export const FollowListModal = ({ visible, mode, userId, onClose }) => {
                   {!isCurrentUser ? (
                     <TouchableOpacity
                       style={[styles.followButton, isFollowing && styles.unfollowButton]}
-                      onPress={() => (isFollowing ? unfollowUser(user.id) : followUser(user.id))}
+                      onPress={(e) => {
+                        e.stopPropagation();
+                        isFollowing ? unfollowUser(user.id) : followUser(user.id);
+                      }}
                     >
                       <Text style={[styles.followButtonText, isFollowing && styles.unfollowButtonText]}>
                         {isFollowing ? 'Unfollow' : 'Follow'}
                       </Text>
                     </TouchableOpacity>
                   ) : null}
-                </View>
+                </TouchableOpacity>
               );
             })
           ) : (

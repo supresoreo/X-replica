@@ -13,7 +13,7 @@ export const AppHeader = ({ title, centered = false, onOpenDrawer }) => {
     <View style={[styles.container, { paddingTop: insets.top, height: 60 + insets.top }]}>
       <TouchableOpacity
         style={styles.avatarButton}
-        onPress={onOpenDrawer}
+        onPress={() => onOpenDrawer?.()}
         activeOpacity={0.8}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >

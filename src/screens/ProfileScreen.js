@@ -1,5 +1,6 @@
-import React, { useMemo, useState } from 'react';
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
+import { Bell, Mail } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 import { AppHeader } from '../components/AppHeader';
@@ -7,7 +8,7 @@ import { EditProfileModal } from '../components/EditProfileModal';
 import { FollowListModal } from '../components/FollowListModal';
 import { UserAvatar } from '../components/UserAvatar';
 
-export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
+export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProfile = null }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [followListMode, setFollowListMode] = useState(null);
   const currentUser = useAppStore((state) => state.currentUser);
@@ -15,7 +16,14 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
   const isFollowingUser = useAppStore((state) => state.isFollowingUser);
   const followUser = useAppStore((state) => state.followUser);
   const unfollowUser = useAppStore((state) => state.unfollowUser);
+  const refreshAppData = useAppStore((state) => state.refreshAppData);
   const tweets = useAppStore((state) => state.tweets);
+  const muteNotificationsForUser = useAppStore((state) => state.muteNotificationsForUser);
+  const unmuteNotificationsForUser = useAppStore((state) => state.unmuteNotificationsForUser);
+  const isNotificationMutedForUser = useAppStore((state) => state.isNotificationMutedForUser);
+  const getCurrentUserId = useAppStore((state) => state.currentUserId);
+  const getOrCreateConversation = useAppStore((state) => state.getOrCreateConversation);
+  const [refreshing, setRefreshing] = useState(false);
   const viewedUser = useMemo(() => {
     if (!profileUserId || profileUserId === currentUser?.id) {
       return currentUser;
@@ -24,6 +32,7 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
     return knownUsers.find((user) => user.id === profileUserId) || currentUser;
   }, [currentUser, knownUsers, profileUserId]);
   const isOwnProfile = viewedUser?.id === currentUser?.id;
+  const isNotificationMuted = viewedUser?.id ? isNotificationMutedForUser(viewedUser.id) : false;
   const userTweets = tweets.filter(
     (tweet) => tweet.userId === viewedUser?.id || tweet.username === viewedUser?.username
   );
@@ -34,6 +43,34 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
   }, [currentUser?.id, knownUsers]);
   const isFollowingViewedUser = viewedUser?.id ? isFollowingUser(viewedUser.id) : false;
 
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshAppData();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshAppData]);
+
+  const handleToggleNotifications = useCallback(() => {
+    if (!viewedUser?.id) return;
+    if (isNotificationMuted) {
+      unmuteNotificationsForUser(viewedUser.id);
+    } else {
+      muteNotificationsForUser(viewedUser.id);
+    }
+  }, [viewedUser?.id, isNotificationMuted, muteNotificationsForUser, unmuteNotificationsForUser]);
+
+  const handleOpenDM = useCallback(() => {
+    if (!viewedUser?.id) return;
+    // Ensure conversation exists
+    getOrCreateConversation(viewedUser.id);
+    // Navigate to messages screen
+    if (onSelectProfile) {
+      onSelectProfile(viewedUser.id, 'messages');
+    }
+  }, [viewedUser?.id, getOrCreateConversation, onSelectProfile]);
+
   if (!currentUser || !viewedUser) {
     return null;
   }
@@ -42,7 +79,10 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
     <View style={styles.container}>
       <AppHeader title="Profile" onOpenDrawer={onOpenDrawer} />
       
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
         {viewedUser.bannerImage ? (
           <ImageBackground source={{ uri: viewedUser.bannerImage }} style={styles.banner} imageStyle={styles.bannerImage} />
         ) : (
@@ -68,16 +108,34 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
               <Text style={styles.editButtonText}>Edit profile</Text>
             </TouchableOpacity>
           ) : (
-            <TouchableOpacity
-              style={[styles.editButton, isFollowingViewedUser && styles.unfollowButton]}
-              onPress={() =>
-                isFollowingViewedUser ? unfollowUser(viewedUser.id) : followUser(viewedUser.id)
-              }
-            >
-              <Text style={[styles.editButtonText, isFollowingViewedUser && styles.unfollowButtonText]}>
-                {isFollowingViewedUser ? 'Unfollow' : 'Follow'}
-              </Text>
-            </TouchableOpacity>
+            <View style={styles.actionButtonsGroup}>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleToggleNotifications}
+              >
+                <Bell
+                  size={20}
+                  color={isNotificationMuted ? '#cfd9de' : '#0f1419'}
+                  fill={isNotificationMuted ? '#cfd9de' : 'none'}
+                />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.iconButton}
+                onPress={handleOpenDM}
+              >
+                <Mail size={20} color="#0f1419" />
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.followButton, isFollowingViewedUser && styles.unfollowButton]}
+                onPress={() =>
+                  isFollowingViewedUser ? unfollowUser(viewedUser.id) : followUser(viewedUser.id)
+                }
+              >
+                <Text style={[styles.followButtonText, isFollowingViewedUser && styles.unfollowButtonText]}>
+                  {isFollowingViewedUser ? 'Unfollow' : 'Follow'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           )}
 
           <Text style={styles.displayName}>{viewedUser.displayName}</Text>
@@ -173,6 +231,12 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null }) => {
         mode={followListMode}
         userId={viewedUser.id}
         onClose={() => setFollowListMode(null)}
+        onSelectProfile={(userId) => {
+          setFollowListMode(null);
+          if (onSelectProfile) {
+            onSelectProfile(userId);
+          }
+        }}
       />
     </View>
   );
@@ -211,6 +275,23 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     borderWidth: 1,
     borderColor: '#cfd9de',
+  },
+  actionButtonsGroup: {
+    position: 'absolute',
+    right: 15,
+    top: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#cfd9de',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   editButtonText: {
     color: '#0f1419',
