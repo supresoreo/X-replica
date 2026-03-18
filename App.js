@@ -7,7 +7,8 @@
 
 import React, { useEffect, useState } from 'react';
 import { StatusBar, StyleSheet, View } from 'react-native';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+// 1. Import SafeAreaView and SafeAreaProvider
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { ForYouScreen } from './src/screens/ForYouScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -53,15 +54,35 @@ function App() {
     hydrateAuth();
   }, [hydrateAuth]);
 
-  useEffect(() => {
-    if (!isAuthenticated || showAccountAuthFlow) {
-      setShowSideNavigation(false);
-    }
-  }, [isAuthenticated, showAccountAuthFlow]);
-
   const navigateAuth = (nextStep) => {
     clearAuthError();
     setAuthStep(nextStep);
+  };
+
+  const handleAuthBack = () => {
+    clearAuthError();
+
+    if (showAccountAuthFlow) {
+      setShowAccountAuthFlow(false);
+      setAuthStep('main');
+      setAccountDraft(null);
+      return;
+    }
+
+    switch (authStep) {
+      case 'login':
+      case 'register':
+        setAuthStep('main');
+        break;
+
+      case 'password':
+        setAuthStep('register');
+        break;
+
+      default:
+        setAuthStep('main');
+        break;
+    }
   };
 
   const handleLogin = async ({ email, password }) => {
@@ -178,7 +199,7 @@ function App() {
         case 'login':
           return (
             <LoginScreen
-              onBack={() => navigateAuth('main')}
+              onBack={handleAuthBack}
               onLogin={handleLogin}
               loading={authLoading}
               error={authError}
@@ -187,7 +208,7 @@ function App() {
         case 'register':
           return (
             <RegisterScreen
-              onBack={() => navigateAuth('main')}
+              onBack={handleAuthBack}
               onContinue={(data) => {
                 setAccountDraft(data);
                 navigateAuth('password');
@@ -197,7 +218,7 @@ function App() {
         case 'password':
           return (
             <CreatePasswordScreen
-              onBack={() => navigateAuth('register')}
+              onBack={handleAuthBack}
               onCreateAccount={handleCreateAccount}
               loading={authLoading}
               error={authError}
@@ -218,50 +239,60 @@ function App() {
 
     return (
       <SafeAreaProvider>
-        {renderAuthScreen()}
+        {/* Added SafeAreaView for Auth with black background */}
+        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'bottom']}>
+          {renderAuthScreen()}
+        </SafeAreaView>
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-      <View style={styles.container}>
-        {renderScreen()}
-        <TabBar
-          activeTab={activeTab}
-          onTabChange={setActiveTab}
-        />
-        <SideNavigation
-          visible={showSideNavigation}
-          currentUser={currentUser}
-          currentUserId={currentUserId}
-          deviceAccounts={deviceAccounts}
-          onClose={() => setShowSideNavigation(false)}
-          onAddAccount={handleOpenAddAccount}
-          onSwitchAccount={handleSwitchAccount}
-          onNavigate={(tab) => {
-            if (tab === 'profile') {
-              setSelectedProfileUserId(null);
-            }
-            setActiveTab(tab);
-            setShowSideNavigation(false);
-          }}
-          onSelectProfile={(userId) => {
-            setSelectedProfileUserId(userId);
-            setActiveTab('profile');
-          }}
-        />
-        <CreatePostModal
-          visible={showCreatePost}
-          onClose={() => setShowCreatePost(false)}
-        />
-      </View>
+      {/* Added SafeAreaView for Main app with white background */}
+      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
+        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
+        <View style={styles.container}>
+          {renderScreen()}
+          <TabBar
+            activeTab={activeTab}
+            onTabChange={setActiveTab}
+          />
+          <SideNavigation
+            visible={showSideNavigation}
+            currentUser={currentUser}
+            currentUserId={currentUserId}
+            deviceAccounts={deviceAccounts}
+            onClose={() => setShowSideNavigation(false)}
+            onAddAccount={handleOpenAddAccount}
+            onSwitchAccount={handleSwitchAccount}
+            onNavigate={(tab) => {
+              if (tab === 'profile') {
+                setSelectedProfileUserId(null);
+              }
+              setActiveTab(tab);
+              setShowSideNavigation(false);
+            }}
+            onSelectProfile={(userId) => {
+              setSelectedProfileUserId(userId);
+              setActiveTab('profile');
+            }}
+          />
+          <CreatePostModal
+            visible={showCreatePost}
+            onClose={() => setShowCreatePost(false)}
+          />
+        </View>
+      </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: '#fff',
+  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
