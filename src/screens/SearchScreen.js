@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
-import { Search } from 'lucide-react-native/icons';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, Text, TextInput, ScrollView, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
+import { Search, CircleAlert } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { AppHeader } from '../components/AppHeader';
 import { UserAvatar } from '../components/UserAvatar';
@@ -9,6 +9,8 @@ export const SearchScreen = ({ onOpenDrawer }) => {
   const searchQuery = useAppStore((state) => state.searchQuery);
   const searchResults = useAppStore((state) => state.searchResults);
   const searchHistory = useAppStore((state) => state.searchHistory);
+  const searchState = useAppStore((state) => state.searchState);
+  const searchError = useAppStore((state) => state.searchError);
   const setSearchQuery = useAppStore((state) => state.setSearchQuery);
   const addSearchHistoryEntry = useAppStore((state) => state.addSearchHistoryEntry);
   const clearSearchHistory = useAppStore((state) => state.clearSearchHistory);
@@ -16,17 +18,38 @@ export const SearchScreen = ({ onOpenDrawer }) => {
   const followUser = useAppStore((state) => state.followUser);
   const unfollowUser = useAppStore((state) => state.unfollowUser);
   const [localQuery, setLocalQuery] = useState(searchQuery);
+  const searchTimeoutRef = useRef(null);
 
   const userResults = searchResults?.users || [];
-  const hasResults = userResults.length > 0;
+  const isLoading = searchState === 'loading';
+  const hasError = searchState === 'error';
+  const isEmpty = searchState === 'empty';
+  const isSearching = localQuery.trim() !== '';
 
   useEffect(() => {
     setLocalQuery(searchQuery || '');
   }, [searchQuery]);
 
+  useEffect(() => {
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleSearch = (text) => {
     setLocalQuery(text);
-    setSearchQuery(text);
+
+    // Clear previous timeout
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
+
+    // Debounce search by 300ms
+    searchTimeoutRef.current = setTimeout(() => {
+      setSearchQuery(text);
+    }, 300);
   };
 
   const handleSubmitSearch = () => {
@@ -39,6 +62,9 @@ export const SearchScreen = ({ onOpenDrawer }) => {
 
   const handleSelectHistory = (query) => {
     setLocalQuery(query);
+    if (searchTimeoutRef.current) {
+      clearTimeout(searchTimeoutRef.current);
+    }
     setSearchQuery(query);
   };
 
@@ -60,49 +86,58 @@ export const SearchScreen = ({ onOpenDrawer }) => {
       </View>
       
       <ScrollView style={styles.results}>
-        {hasResults ? (
-          <View>
-            {userResults.length ? (
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>People</Text>
-                {userResults.map((user) => {
-                  const isFollowing = isFollowingUser(user.id);
-                  return (
-                    <View key={user.id} style={styles.userRow}>
-                      <UserAvatar
-                        imageUri={user.avatarImage}
-                        fallbackText={user.avatar || user.displayName?.charAt(0)}
-                        backgroundColor={user.averageColor || '#000000'}
-                        size={48}
-                      />
-                      <View style={styles.userDetails}>
-                        <Text style={styles.userName}>{user.displayName}</Text>
-                        <Text style={styles.userHandle}>{user.username}</Text>
-                        {!!user.bio && (
-                          <Text style={styles.userBio} numberOfLines={2}>
-                            {user.bio}
-                          </Text>
-                        )}
-                      </View>
-                      <TouchableOpacity
-                        style={[styles.followButton, isFollowing && styles.unfollowButton]}
-                        onPress={() => (isFollowing ? unfollowUser(user.id) : followUser(user.id))}
-                      >
-                        <Text style={[styles.followButtonText, isFollowing && styles.unfollowButtonText]}>
-                          {isFollowing ? 'Unfollow' : 'Follow'}
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
+        {isLoading ? (
+          <View style={styles.centerContainer}>
+            <ActivityIndicator size="large" color="#1d9bf0" />
+            <Text style={styles.loadingText}>Searching...</Text>
           </View>
-        ) : localQuery.trim() !== '' ? (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyStateText}>No results found</Text>
+        ) : hasError ? (
+          <View style={styles.centerContainer}>
+            <CircleAlert size={60} color="#e0245e" strokeWidth={1.5} />
+            <Text style={styles.errorTitle}>Search Error</Text>
+            <Text style={styles.errorText}>{searchError}</Text>
           </View>
-        ) : searchHistory?.length ? (
+        ) : isEmpty && isSearching ? (
+          <View style={styles.centerContainer}>
+            <Search size={60} color="#536471" strokeWidth={1.5} />
+            <Text style={styles.emptyStateTitle}>No results found</Text>
+            <Text style={styles.emptyStateText}>Try searching for different people</Text>
+          </View>
+        ) : userResults.length > 0 ? (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>People</Text>
+            {userResults.map((user) => {
+              const isFollowing = isFollowingUser(user.id);
+              return (
+                <View key={user.id} style={styles.userRow}>
+                  <UserAvatar
+                    imageUri={user.avatarImage}
+                    fallbackText={user.avatar || user.displayName?.charAt(0)}
+                    backgroundColor={user.averageColor || '#000000'}
+                    size={48}
+                  />
+                  <View style={styles.userDetails}>
+                    <Text style={styles.userName}>{user.displayName}</Text>
+                    <Text style={styles.userHandle}>{user.username}</Text>
+                    {!!user.bio && (
+                      <Text style={styles.userBio} numberOfLines={2}>
+                        {user.bio}
+                      </Text>
+                    )}
+                  </View>
+                  <TouchableOpacity
+                    style={[styles.followButton, isFollowing && styles.unfollowButton]}
+                    onPress={() => (isFollowing ? unfollowUser(user.id) : followUser(user.id))}
+                  >
+                    <Text style={[styles.followButtonText, isFollowing && styles.unfollowButtonText]}>
+                      {isFollowing ? 'Unfollow' : 'Follow'}
+                    </Text>
+                  </TouchableOpacity>
+                </View>
+              );
+            })}
+          </View>
+        ) : searchHistory?.length && !isSearching ? (
           <View style={styles.section}>
             <View style={styles.historyHeader}>
               <Text style={styles.sectionTitle}>Recent searches</Text>
@@ -123,12 +158,10 @@ export const SearchScreen = ({ onOpenDrawer }) => {
             ))}
           </View>
         ) : (
-          <View style={styles.emptyState}>
+          <View style={styles.centerContainer}>
             <Search size={60} color="#536471" strokeWidth={1.5} />
             <Text style={styles.emptyStateTitle}>Search X</Text>
-            <Text style={styles.emptyStateText}>
-              Find people
-            </Text>
+            <Text style={styles.emptyStateText}>Find people</Text>
           </View>
         )}
       </ScrollView>
@@ -160,6 +193,29 @@ const styles = StyleSheet.create({
   },
   results: {
     flex: 1,
+  },
+  centerContainer: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 40,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 15,
+    color: '#536471',
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#0f1419',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#536471',
+    textAlign: 'center',
   },
   section: {
     paddingTop: 6,
@@ -244,15 +300,11 @@ const styles = StyleSheet.create({
   unfollowButtonText: {
     color: '#0f1419',
   },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-  },
   emptyStateTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     color: '#0f1419',
+    marginTop: 16,
     marginBottom: 8,
   },
   emptyStateText: {

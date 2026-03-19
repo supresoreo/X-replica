@@ -6,9 +6,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { StatusBar, StyleSheet, View } from 'react-native';
-// 1. Import SafeAreaView and SafeAreaProvider
-import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { Animated, Easing, StatusBar, StyleSheet, View } from 'react-native';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ForYouScreen } from './src/screens/ForYouScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
@@ -19,6 +18,11 @@ import { GrokScreen } from './src/screens/GrokScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { PremiumScreen } from './src/screens/PremiumScreen';
 import { CommunitiesScreen } from './src/screens/CommunitiesScreen';
+import { ListsScreen } from './src/screens/ListsScreen';
+import { SpacesScreen } from './src/screens/SpacesScreen';
+import { CreatorStudioScreen } from './src/screens/CreatorStudioScreen';
+import { CreatorProgramScreen } from './src/screens/CreatorProgramScreen';
+import { InspirationScreen } from './src/screens/InspirationScreen';
 import { CreatePostModal } from './src/components/CreatePostModal';
 import { TabBar } from './src/components/TabBar';
 import { SideNavigation } from './src/components/SideNavigation';
@@ -49,40 +53,47 @@ function App() {
   const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showSideNavigation, setShowSideNavigation] = useState(false);
+  const [screenAnim] = useState(() => new Animated.Value(1));
 
   useEffect(() => {
     hydrateAuth();
   }, [hydrateAuth]);
 
+  useEffect(() => {
+    if (!isAuthenticated || showAccountAuthFlow) {
+      setShowSideNavigation(false);
+    }
+  }, [isAuthenticated, showAccountAuthFlow]);
+
+  useEffect(() => {
+    screenAnim.stopAnimation();
+    screenAnim.setValue(0);
+
+    Animated.timing(screenAnim, {
+      toValue: 1,
+      duration: 260,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [activeTab, screenAnim]);
+
+  const handleTabChange = (nextTab) => {
+    setActiveTab(nextTab);
+  };
+
+  const isDarkScreen = [
+    'communities',
+    'lists',
+    'spaces',
+    'creatorStudio',
+    'creatorRevenueSharing',
+    'creatorSubscriptions',
+    'inspiration',
+  ].includes(activeTab);
+
   const navigateAuth = (nextStep) => {
     clearAuthError();
     setAuthStep(nextStep);
-  };
-
-  const handleAuthBack = () => {
-    clearAuthError();
-
-    if (showAccountAuthFlow) {
-      setShowAccountAuthFlow(false);
-      setAuthStep('main');
-      setAccountDraft(null);
-      return;
-    }
-
-    switch (authStep) {
-      case 'login':
-      case 'register':
-        setAuthStep('main');
-        break;
-
-      case 'password':
-        setAuthStep('register');
-        break;
-
-      default:
-        setAuthStep('main');
-        break;
-    }
   };
 
   const handleLogin = async ({ email, password }) => {
@@ -125,7 +136,7 @@ function App() {
     if (result.ok) {
       setShowSideNavigation(false);
       setSelectedProfileUserId(null);
-      setActiveTab('profile');
+      handleTabChange('profile');
     }
   };
 
@@ -135,7 +146,7 @@ function App() {
     }
 
     setSelectedProfileUserId(userId);
-    setActiveTab('profile');
+    handleTabChange('profile');
   };
 
   const handleOpenDrawer = () => {
@@ -168,10 +179,10 @@ function App() {
             onSelectProfile={(userId, targetTab) => {
               if (targetTab === 'messages') {
                 setSelectedProfileUserId(null);
-                setActiveTab('messages');
+                handleTabChange('messages');
               } else {
                 setSelectedProfileUserId(userId);
-                setActiveTab('profile');
+                handleTabChange('profile');
               }
             }}
           />
@@ -182,6 +193,39 @@ function App() {
         return <PremiumScreen onOpenDrawer={handleOpenDrawer} />;
       case 'communities':
         return <CommunitiesScreen onOpenDrawer={handleOpenDrawer} />;
+      case 'lists':
+        return <ListsScreen onBack={() => handleTabChange('forYou')} />;
+      case 'spaces':
+        return <SpacesScreen onBack={() => handleTabChange('forYou')} />;
+      case 'creatorStudio':
+        return (
+          <CreatorStudioScreen
+            onBack={() => handleTabChange('forYou')}
+            onOpenRevenueSharing={() => handleTabChange('creatorRevenueSharing')}
+            onOpenSubscriptions={() => handleTabChange('creatorSubscriptions')}
+            onOpenInspiration={() => handleTabChange('inspiration')}
+          />
+        );
+      case 'creatorRevenueSharing':
+        return (
+          <CreatorProgramScreen
+            program="revenue"
+            onBack={() => handleTabChange('creatorStudio')}
+          />
+        );
+      case 'creatorSubscriptions':
+        return (
+          <CreatorProgramScreen
+            program="subscriptions"
+            onBack={() => handleTabChange('creatorStudio')}
+          />
+        );
+      case 'inspiration':
+        return (
+          <InspirationScreen
+            onBack={() => handleTabChange('creatorStudio')}
+          />
+        );
       default:
         return (
           <ForYouScreen
@@ -199,7 +243,7 @@ function App() {
         case 'login':
           return (
             <LoginScreen
-              onBack={handleAuthBack}
+              onBack={() => navigateAuth('main')}
               onLogin={handleLogin}
               loading={authLoading}
               error={authError}
@@ -208,7 +252,7 @@ function App() {
         case 'register':
           return (
             <RegisterScreen
-              onBack={handleAuthBack}
+              onBack={() => navigateAuth('main')}
               onContinue={(data) => {
                 setAccountDraft(data);
                 navigateAuth('password');
@@ -218,7 +262,7 @@ function App() {
         case 'password':
           return (
             <CreatePasswordScreen
-              onBack={handleAuthBack}
+              onBack={() => navigateAuth('register')}
               onCreateAccount={handleCreateAccount}
               loading={authLoading}
               error={authError}
@@ -239,63 +283,74 @@ function App() {
 
     return (
       <SafeAreaProvider>
-        {/* Added SafeAreaView for Auth with black background */}
-        <SafeAreaView style={{ flex: 1, backgroundColor: '#000' }} edges={['top', 'bottom']}>
-          {renderAuthScreen()}
-        </SafeAreaView>
+        {renderAuthScreen()}
       </SafeAreaProvider>
     );
   }
 
   return (
     <SafeAreaProvider>
-      {/* Added SafeAreaView for Main app with white background */}
-      <SafeAreaView style={styles.safeArea} edges={['top', 'bottom']}>
-        <StatusBar barStyle="dark-content" backgroundColor="#fff" />
-        <View style={styles.container}>
+      <StatusBar barStyle={isDarkScreen ? 'light-content' : 'dark-content'} backgroundColor={isDarkScreen ? '#000' : '#fff'} />
+      <View style={styles.container}>
+        <Animated.View
+          style={[
+            styles.screenWrap,
+            {
+              opacity: screenAnim,
+              transform: [
+                {
+                  translateY: screenAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [14, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           {renderScreen()}
-          <TabBar
-            activeTab={activeTab}
-            onTabChange={setActiveTab}
-          />
-          <SideNavigation
-            visible={showSideNavigation}
-            currentUser={currentUser}
-            currentUserId={currentUserId}
-            deviceAccounts={deviceAccounts}
-            onClose={() => setShowSideNavigation(false)}
-            onAddAccount={handleOpenAddAccount}
-            onSwitchAccount={handleSwitchAccount}
-            onNavigate={(tab) => {
-              if (tab === 'profile') {
-                setSelectedProfileUserId(null);
-              }
-              setActiveTab(tab);
-              setShowSideNavigation(false);
-            }}
-            onSelectProfile={(userId) => {
-              setSelectedProfileUserId(userId);
-              setActiveTab('profile');
-            }}
-          />
-          <CreatePostModal
-            visible={showCreatePost}
-            onClose={() => setShowCreatePost(false)}
-          />
-        </View>
-      </SafeAreaView>
+        </Animated.View>
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          dark={isDarkScreen}
+        />
+        <SideNavigation
+          visible={showSideNavigation}
+          currentUser={currentUser}
+          currentUserId={currentUserId}
+          deviceAccounts={deviceAccounts}
+          onClose={() => setShowSideNavigation(false)}
+          onAddAccount={handleOpenAddAccount}
+          onSwitchAccount={handleSwitchAccount}
+          onNavigate={(tab) => {
+            if (tab === 'profile') {
+              setSelectedProfileUserId(null);
+            }
+            handleTabChange(tab);
+            setShowSideNavigation(false);
+          }}
+          onSelectProfile={(userId) => {
+            setSelectedProfileUserId(userId);
+            handleTabChange('profile');
+          }}
+        />
+        <CreatePostModal
+          visible={showCreatePost}
+          onClose={() => setShowCreatePost(false)}
+        />
+      </View>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
   container: {
     flex: 1,
     backgroundColor: '#fff',
+  },
+  screenWrap: {
+    flex: 1,
   },
 });
 

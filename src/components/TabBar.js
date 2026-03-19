@@ -3,7 +3,7 @@ import { View, TouchableOpacity, StyleSheet, Text } from 'react-native';
 import { House, Search, Sparkles, Bell, Mail } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 
-export const TabBar = ({ activeTab, onTabChange }) => {
+export const TabBar = ({ activeTab, onTabChange, dark = false }) => {
   const unreadNotifications = useAppStore((state) => state.getUnreadNotificationCount());
   const unreadMessages = useAppStore((state) => state.getUnreadMessageCount());
   const tabs = [
@@ -15,7 +15,7 @@ export const TabBar = ({ activeTab, onTabChange }) => {
   ];
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, dark && styles.containerDark]}>
       {tabs.map((tab) => {
         const Icon = tab.icon;
         const isActive = activeTab === tab.id;
@@ -29,7 +29,15 @@ export const TabBar = ({ activeTab, onTabChange }) => {
             <View style={styles.iconWrap}>
               <Icon
                 size={24}
-                color={isActive ? '#0f1419' : '#536471'}
+                color={
+                  dark
+                    ? isActive
+                      ? '#f2f2f2'
+                      : '#6f7a83'
+                    : isActive
+                      ? '#0f1419'
+                      : '#536471'
+                }
                 strokeWidth={isActive ? 2 : 2}
               />
               {badgeCount > 0 ? (
@@ -54,6 +62,10 @@ const styles = StyleSheet.create({
     height: 60,
     justifyContent: 'space-around',
     alignItems: 'center',
+  },
+  containerDark: {
+    backgroundColor: '#000',
+    borderTopColor: '#1f2428',
   },
   tab: {
     flex: 1,

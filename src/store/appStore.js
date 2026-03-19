@@ -289,6 +289,8 @@ const defaultAccountState = () => ({
   unreadMessages: {},
   searchQuery: '',
   searchResults: { users: [], tweets: [] },
+  searchState: 'idle',
+  searchError: '',
   searchHistory: [],
 });
 
@@ -554,6 +556,8 @@ export const useAppStore = create((set, get) => ({
     tweets: [],
   },
   searchHistory: [],
+  searchState: 'idle',
+  searchError: '',
 
   getUnreadNotificationCount: () => {
     return (get().notifications || []).filter((entry) => !entry.read).length;
@@ -987,6 +991,8 @@ export const useAppStore = create((set, get) => ({
       mutedNotifications: [],
       searchQuery: '',
       searchHistory: [],
+  searchState: 'idle',
+  searchError: '',
       searchResults: {
         users: [],
         tweets: [],
@@ -1504,26 +1510,33 @@ export const useAppStore = create((set, get) => ({
     set({ searchQuery: query });
 
     if (!normalized) {
-      set({ searchResults: { users: [], tweets: [] } });
+      set({ searchResults: { users: [], tweets: [] }, searchState: 'idle', searchError: '' });
       return;
     }
+
+    // Start loading state
+    set({ searchState: 'loading', searchError: '' });
 
     const localUserResults = state.knownUsers.filter((user) => {
       if (user.id === state.currentUserId) {
         return false;
       }
 
+      const displayName = (user.displayName || '').toLowerCase();
       const normalizedHandle = (user.username || '').replace(/^@/, '').toLowerCase();
+      const username = (user.username || '').toLowerCase();
+      const bio = (user.bio || '').toLowerCase();
 
       return (
-        user.displayName.toLowerCase().includes(normalized) ||
+        displayName.includes(normalized) ||
         normalizedHandle.includes(normalized) ||
-        user.username.toLowerCase().includes(normalized) ||
-        user.bio.toLowerCase().includes(normalized)
+        username.includes(normalized) ||
+        bio.includes(normalized)
       );
     });
 
     let remoteUserResults = [];
+    let hasError = false;
     try {
       const remoteUsers = await authService.searchUsers(normalized);
       remoteUserResults = remoteUsers.map((user) => {
@@ -1532,16 +1545,33 @@ export const useAppStore = create((set, get) => ({
         );
         return normalizeUser(user, existingUser);
       });
-    } catch {
+    } catch (error) {
       remoteUserResults = [];
+      hasError = true;
+    }
+
+    // Ignore stale async responses if user has typed a newer query.
+    const latestNormalized = (get().searchQuery || '').trim().toLowerCase();
+    if (latestNormalized !== normalized) {
+      return;
     }
 
     const mergedUserResults = mergeUniqueUsers(localUserResults, remoteUserResults);
     const nextKnownUsers = reconcileKnownUsers(mergeUsers(get().knownUsers, remoteUserResults));
+    // Prefer showing available matches even if remote lookup fails.
+    let nextSearchState = 'success';
+    let nextSearchError = '';
+
+    if (mergedUserResults.length === 0) {
+      nextSearchState = 'empty';
+      nextSearchError = hasError ? 'Unable to reach server. Showing local results only.' : '';
+    }
 
     const nextState = {
       knownUsers: nextKnownUsers,
       searchResults: { users: mergedUserResults, tweets: [] },
+      searchState: nextSearchState,
+      searchError: nextSearchError,
     };
 
     set(nextState);
