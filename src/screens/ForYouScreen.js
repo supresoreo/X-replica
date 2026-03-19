@@ -1,5 +1,6 @@
 import React, { useCallback, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Plus } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -13,6 +14,10 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
   const displayMode = useAppStore((state) => state.displayMode);
   const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
   const systemScheme = useColorScheme();
+  
+  // Hook to get the safe area bottom inset
+  const insets = useSafeAreaInsets();
+
   const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
   const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
@@ -116,6 +121,8 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
       
       <ScrollView
         style={styles.feed}
+        /* Adding padding to the bottom of the scroll content so the last tweet isn't hidden */
+        contentContainerStyle={{ paddingBottom: insets.bottom + 20 }}
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
       >
         {visibleTweets.length ? (
@@ -130,7 +137,11 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
         )}
       </ScrollView>
       
-      <TouchableOpacity style={styles.fab} onPress={onCreatePost}>
+      <TouchableOpacity 
+        /* Pushing the FAB up by the height of the device navigation bar */
+        style={[styles.fab, { bottom: 20 + insets.bottom }]} 
+        onPress={onCreatePost}
+      >
         <Plus size={42 * iconScale} color="#fff" strokeWidth={2.1} />
       </TouchableOpacity>
     </View>
@@ -192,18 +203,17 @@ const styles = StyleSheet.create({
   },
   fab: {
     position: 'absolute',
-    bottom: 80,
     right: 20,
-    width: 86,
-    height: 86,
-    borderRadius: 43,
-    backgroundColor: '#4fa0ea',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#1d9bf0',
     justifyContent: 'center',
     alignItems: 'center',
-    elevation: 9,
-    shadowColor: '#2a7dc9',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.32,
-    shadowRadius: 8,
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
   },
 });

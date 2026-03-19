@@ -17,6 +17,7 @@ import { AppHeader } from '../components/AppHeader';
 export const MessagesScreen = ({ onOpenDrawer }) => {
   const conversations = useAppStore((state) => state.conversations);
   const messages = useAppStore((state) => state.messages);
+  const currentUser = useAppStore((state) => state.currentUser); // Added this to the state selector
   const sendMessage = useAppStore((state) => state.sendMessage);
   const refreshAppData = useAppStore((state) => state.refreshAppData);
   const markAllMessagesAsRead = useAppStore((state) => state.markAllMessagesAsRead);
@@ -153,8 +154,8 @@ export const MessagesScreen = ({ onOpenDrawer }) => {
           
           <ScrollView style={styles.messagesContainer}>
             {conversationMessages.map((msg) => {
-              const currentUser = useAppStore.getState().currentUser;
-              const isCurrentUser = msg.sender === currentUser.username;
+              // Logic fix: Determine if current user is the sender based on the app store's user state
+              const isCurrentUser = msg.sender === currentUser?.username;
               
               return (
                 <View

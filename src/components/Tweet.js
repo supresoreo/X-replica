@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native';
+import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View, TouchableOpacity } from 'react-native';
 
 export const UserAvatar = ({
   imageUri,
@@ -10,12 +10,17 @@ export const UserAvatar = ({
   style,
   borderWidth = 0,
   borderColor = '#ffffff',
+  onPress, // 👈 add this
 }) => {
   const resolvedTextSize = textSize || Math.max(14, Math.floor(size * 0.4));
   const radius = size / 2;
 
+  const Container = onPress ? TouchableOpacity : View;
+
   return (
-    <View
+    <Container
+      onPress={onPress}
+      activeOpacity={onPress ? 0.7 : 1}
       style={[
         styles.avatar,
         {
@@ -30,13 +35,21 @@ export const UserAvatar = ({
       ]}
     >
       {imageUri ? (
-        <Image source={{ uri: imageUri }} style={{ width: size, height: size, borderRadius: radius }} />
+        <Image
+          key={imageUri}
+          source={{ uri: imageUri, cache: 'reload' }}
+          style={{
+            width: size - borderWidth * 2,
+            height: size - borderWidth * 2,
+            borderRadius: radius,
+          }}
+        />
       ) : (
         <Text style={[styles.fallbackText, { fontSize: resolvedTextSize }]}>
           {fallbackText || 'U'}
         </Text>
       )}
-    </View>
+    </Container>
   );
 };
 

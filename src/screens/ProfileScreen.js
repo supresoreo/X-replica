@@ -1,5 +1,7 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl, useColorScheme } from 'react-native';
+import { launchImageLibrary, launchCamera } from 'react-native-image-picker';
+import { Alert } from 'react-native';
 import { Bell, Mail } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -81,6 +83,36 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
     return null;
   }
 
+  const updateProfileAvatar = useAppStore((state) => state.updateProfileAvatar);
+
+const handleChangeAvatar = useCallback(() => {
+  Alert.alert("Change Avatar", "Choose an option", [
+    {
+      text: "Camera",
+      onPress: () => {
+        launchCamera({ mediaType: 'photo' }, (response) => {
+          if (response.didCancel || response.errorCode) return;
+
+          const uri = response.assets?.[0]?.uri;
+          if (uri) updateProfileAvatar(uri);
+        });
+      },
+    },
+    {
+      text: "Gallery",
+      onPress: () => {
+        launchImageLibrary({ mediaType: 'photo' }, (response) => {
+          if (response.didCancel || response.errorCode) return;
+
+          const uri = response.assets?.[0]?.uri;
+          if (uri) updateProfileAvatar(uri);
+        });
+      },
+    },
+    { text: "Cancel", style: "cancel" },
+  ]);
+}, [updateProfileAvatar]);
+
   const contentNode = (
     <View style={styles.container}>
       <AppHeader title="Profile" onOpenDrawer={onOpenDrawer} />
@@ -104,6 +136,7 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
             borderWidth={4}
             borderColor="#ffffff"
             style={styles.avatarCircle}
+            onPress={isOwnProfile ? handleChangeAvatar : null} // 👈 ONLY if own profile
           />
 
           {isOwnProfile ? (

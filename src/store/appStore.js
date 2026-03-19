@@ -565,6 +565,35 @@ export const useAppStore = create((set, get) => ({
   searchState: 'idle',
   searchError: '',
 
+updateCurrentUser: async (updates) => {
+    const state = get();
+    if (!state.currentUserId || !state.currentUser) return;
+
+    // 1. Create the updated user object
+    const updatedUser = {
+      ...state.currentUser,
+      ...updates,
+    };
+
+    // 2. Update the user in the "knownUsers" list so it shows up everywhere (Profile, Tweets, etc.)
+    const nextKnownUsers = state.knownUsers.map((user) =>
+      user.id === state.currentUserId ? updatedUser : user
+    );
+
+    const nextState = {
+      currentUser: updatedUser,
+      knownUsers: nextKnownUsers,
+    };
+
+    // 3. Apply to the UI immediately
+    set(nextState);
+
+    // 4. Save to phone storage so it persists after closing the app
+    const mergedState = { ...get(), ...nextState };
+    await persistLocalState(mergedState);
+    await persistAccountState(state.currentUserId, mergedState);
+  },
+
   getUnreadNotificationCount: () => {
     return (get().notifications || []).filter((entry) => !entry.read).length;
   },
@@ -1071,52 +1100,65 @@ export const useAppStore = create((set, get) => ({
     await persistLocalState(mergedState);
   },
 
-  addTweet: (content) => {
-    const state = get();
-    if (!state.currentUser) {
-      return;
-    }
+  addTweet: ({ content, image }) => {
+  const state = get();
+  if (!state.currentUser) {
+    return;
+  }
 
-    const updatedAuthor = {
-      ...state.currentUser,
-      tweets: state.currentUser.tweets + 1,
-    };
+  const updatedAuthor = {
+    ...state.currentUser,
+    tweets: state.currentUser.tweets + 1,
+  };
 
-    const newTweet = {
-      id: `${updatedAuthor.id}-${Date.now()}`,
-      userId: updatedAuthor.id,
-      username: updatedAuthor.username,
-      displayName: updatedAuthor.displayName,
-      avatar: updatedAuthor.avatar,
-      avatarImage: updatedAuthor.avatarImage,
-      averageColor: updatedAuthor.averageColor,
-      content,
-      createdAt: new Date().toISOString(),
-      likes: 0,
-      retweets: 0,
-      replies: 0,
-      isLiked: false,
-      isRetweeted: false,
-      isBookmarked: false,
-    };
+  const newTweet = {
+    id: `${updatedAuthor.id}-${Date.now()}`,
+    userId: updatedAuthor.id,
+    username: updatedAuthor.username,
+    displayName: updatedAuthor.displayName,
+    avatar: updatedAuthor.avatar,
+    avatarImage: updatedAuthor.avatarImage,
+    averageColor: updatedAuthor.averageColor,
+    content: content || '',
+    image: image || null,
+    createdAt: new Date().toISOString(),
+    likes: 0,
+    retweets: 0,
+    replies: 0,
+    isLiked: false,
+    isRetweeted: false,
+    isBookmarked: false,
+  };
 
-    const normalizedTweet = normalizeTweet(newTweet, updatedAuthor);
-    const nextAuthoredTweets = dedupeAndSortTweets([normalizedTweet, ...(state.authoredTweets || [])]);
-    const nextTimelineTweets = dedupeAndSortTweets([normalizedTweet, ...state.tweets]);
+  const normalizedTweet = normalizeTweet(newTweet, updatedAuthor);
 
-    const nextKnownUsers = reconcileKnownUsers(upsertUser(state.knownUsers, updatedAuthor));
-    const nextState = {
-      authoredTweets: nextAuthoredTweets,
-      tweets: nextTimelineTweets,
-      knownUsers: nextKnownUsers,
-      currentUser: updatedAuthor,
-    };
+  const nextAuthoredTweets = dedupeAndSortTweets([
+    normalizedTweet,
+    ...(state.authoredTweets || []),
+  ]);
 
-    set(nextState);
-    const mergedState = { ...get(), ...nextState };
-    persistLocalState(mergedState);
-    persistAccountState(mergedState.currentUserId, mergedState);
-  },
+  const nextTimelineTweets = dedupeAndSortTweets([
+    normalizedTweet,
+    ...state.tweets,
+  ]);
+
+  const nextKnownUsers = reconcileKnownUsers(
+    upsertUser(state.knownUsers, updatedAuthor)
+  );
+
+  const nextState = {
+    authoredTweets: nextAuthoredTweets,
+    tweets: nextTimelineTweets,
+    knownUsers: nextKnownUsers,
+    currentUser: updatedAuthor,
+  };
+
+  set(nextState);
+
+  const mergedState = { ...get(), ...nextState };
+  persistLocalState(mergedState);
+  persistAccountState(mergedState.currentUserId, mergedState);
+},
 
   replyTweet: (id) => {
     const state = get();
@@ -1443,40 +1485,120 @@ export const useAppStore = create((set, get) => ({
     persistAccountState(mergedState.currentUserId, mergedState);
   },
 
-  sendMessage: (conversationId, content) => {
-    const state = get();
-    if (!state.currentUser || !conversationId || !content.trim()) {
-      return;
-    }
+  sendMessage: async (conversationId, content) => {
+  const state = get();
+  if (!state.currentUser || !conversationId || !content.trim()) return;
 
-    const newMessage = {
-      id: Date.now().toString(),
-      conversationId,
-      sender: state.currentUser.username,
-      content,
-      timestamp: 'Just now',
+  const newMessage = {
+    id: Date.now().toString(),
+    conversationId,
+    sender: state.currentUser.username,
+    content,
+    timestamp: 'Just now',
+  };
+
+  const nextState = {
+    messages: {
+      ...state.messages,
+      [conversationId]: [
+        ...(state.messages[conversationId] || []),
+        newMessage,
+      ],
+    },
+    conversations: state.conversations.map((conv) =>
+      conv.id === conversationId
+        ? {
+            ...conv,
+            lastMessage: content,
+            timestamp: 'Just now',
+            unread: false,
+          }
+        : conv
+    ),
+  };
+
+  set(nextState);
+
+  const mergedState = { ...get(), ...nextState };
+
+  await persistLocalState(mergedState);
+  await persistAccountState(mergedState.currentUserId, mergedState);
+
+  const recipientId = conversationId;
+
+  const recipientState = await loadAccountState(recipientId);
+
+  // messages for receiver
+  const recipientMessages = {
+    ...recipientState.messages,
+    [state.currentUserId]: [
+      ...(recipientState.messages?.[state.currentUserId] || []),
+      newMessage,
+    ],
+  };
+
+  // conversations for receiver
+  const existingConv = recipientState.conversations.find(
+    (c) => c.id === state.currentUserId
+  );
+
+  let updatedConversations;
+
+  if (existingConv) {
+    updatedConversations = recipientState.conversations.map((conv) =>
+      conv.id === state.currentUserId
+        ? {
+            ...conv,
+            lastMessage: content,
+            timestamp: 'Just now',
+            unread: true,
+          }
+        : conv
+    );
+  } else {
+    const senderUser = state.currentUser;
+
+    updatedConversations = [
+      {
+        id: state.currentUserId,
+        userId: state.currentUserId,
+        displayName: senderUser.displayName,
+        lastMessage: content,
+        timestamp: 'Just now',
+        unread: true,
+      },
+      ...(recipientState.conversations || []),
+    ];
+  }
+
+  const updatedRecipientState = {
+    ...recipientState,
+    messages: recipientMessages,
+    conversations: updatedConversations,
+  };
+
+  await persistAccountState(recipientId, updatedRecipientState);
+},
+
+updateProfileAvatar: (uri) =>
+  set((state) => {
+    if (!state.currentUser) return state;
+
+    const updatedUser = {
+      ...state.currentUser,
+      avatarImage: uri,
     };
 
-    const nextState = {
-      messages: {
-        ...state.messages,
-        [conversationId]: [...(state.messages[conversationId] || []), newMessage],
-      },
-      conversations: state.conversations.map((conv) =>
-        conv.id === conversationId
-          ? { ...conv, lastMessage: content, timestamp: 'Just now', unread: false }
-          : conv
+    return {
+      // update current user
+      currentUser: updatedUser,
+
+      // also update in knownUsers list
+      knownUsers: state.knownUsers.map((user) =>
+        user.id === updatedUser.id ? updatedUser : user
       ),
     };
-
-    set(nextState);
-    const mergedState = { ...get(), ...nextState };
-    persistLocalState(mergedState);
-    persistAccountState(mergedState.currentUserId, mergedState);
-    
-    // Notify the recipient about the new message
-    get().recordUnreadMessage(conversationId, state.currentUser.id);
-  },
+  }),
 
   recordUnreadMessage: async (conversationId, senderId) => {
     const state = get();

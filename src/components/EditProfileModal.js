@@ -12,7 +12,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { Camera, Edit2 } from 'lucide-react-native';
+import { Camera, Edit2 } from 'lucide-react-native/icons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';

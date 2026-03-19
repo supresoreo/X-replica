@@ -1,10 +1,3 @@
-/**
- * Twitter/X Clone App
- * A full-featured social media app with Zustand state management
- *
- * @format
- */
-
 import React, { useEffect, useState } from 'react';
 import { Animated, Easing, StatusBar, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -18,12 +11,12 @@ import { GrokScreen } from './src/screens/GrokScreen';
 import { NotificationsScreen } from './src/screens/NotificationsScreen';
 import { PremiumScreen } from './src/screens/PremiumScreen';
 import { CommunitiesScreen } from './src/screens/CommunitiesScreen';
-import { ListsScreen } from './src/screens/ListsScreen';
+import { ListsScreen } from './src/screens/ListsScreens';
 import { SpacesScreen } from './src/screens/SpacesScreen';
 import { CreatorStudioScreen } from './src/screens/CreatorStudioScreen';
 import { CreatorProgramScreen } from './src/screens/CreatorProgramScreen';
 import { InspirationScreen } from './src/screens/InspirationScreen';
-import { SettingsScreen } from './src/screens/SettingsScreen';
+import { SettingsScreen } from './src/screens/SettingsScreens';
 import {
   AccessibilityDisplayLanguagesScreen,
   AccessibilitySettingsScreen,

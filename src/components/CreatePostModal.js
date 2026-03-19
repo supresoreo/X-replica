@@ -10,6 +10,7 @@ import {
   Platform,
   useColorScheme,
 } from 'react-native';
+import { launchImageLibrary } from 'react-native-image-picker';
 import { Image, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
@@ -18,6 +19,7 @@ import { transformNodeForDisplay } from '../utils/themeTransform';
 export const CreatePostModal = ({ visible, onClose }) => {
 
   const [postText, setPostText] = useState('');
+  const [selectedImage, setSelectedImage] = useState(null);
   const addTweet = useAppStore((state) => state.addTweet);
   const currentUser = useAppStore((state) => state.currentUser);
   const displayMode = useAppStore((state) => state.displayMode);
@@ -27,13 +29,29 @@ export const CreatePostModal = ({ visible, onClose }) => {
   const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
+  const pickImage = async () => {
+  const result = await launchImageLibrary({
+    mediaType: 'photo',
+    quality: 0.8,
+  });
+
+  if (!result.didCancel && result.assets && result.assets.length > 0) {
+    setSelectedImage(result.assets[0].uri);
+  }
+};
+
   const handlePost = () => {
-    if (postText.trim()) {
-      addTweet(postText);
-      setPostText('');
-      onClose();
-    }
-  };
+  if (postText.trim() || selectedImage) {
+    addTweet({
+      content: postText,
+      image: selectedImage,
+    });
+
+    setPostText('');
+    setSelectedImage(null);
+    onClose();
+  }
+};
   const characterCount = postText.length;
   const maxCharacters = 280;
   const canPost = postText.trim().length > 0 && characterCount <= maxCharacters;
@@ -90,9 +108,18 @@ export const CreatePostModal = ({ visible, onClose }) => {
             maxLength={maxCharacters}
           />
 
+          {selectedImage && (
+            <View style={styles.imagePreviewContainer}>
+              <Image
+                source={{ uri: selectedImage }}
+                style={styles.imagePreview}
+              />
+            </View>
+          )}
+
           <View style={styles.footer}>
             <View style={styles.options}>
-              <TouchableOpacity style={styles.optionButton}>
+              <TouchableOpacity style={styles.optionButton} onPress={pickImage}>
                 <Image size={20} color="#1d9bf0" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.optionButton}>
@@ -209,4 +236,13 @@ const styles = StyleSheet.create({
   characterCountError: {
     color: '#f91880',
   },
+
+  imagePreviewContainer: {
+  marginTop: 10,
+},
+imagePreview: {
+  width: '100%',
+  height: 200,
+  borderRadius: 10,
+},
 });
