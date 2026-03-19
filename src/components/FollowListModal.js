@@ -6,10 +6,12 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
 import { X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
+import { transformNodeForDisplay } from '../utils/themeTransform';
 
 export const FollowListModal = ({ visible, mode, userId, onClose, onSelectProfile = null }) => {
   const currentUser = useAppStore((state) => state.currentUser);
@@ -19,6 +21,12 @@ export const FollowListModal = ({ visible, mode, userId, onClose, onSelectProfil
   const isFollowingUser = useAppStore((state) => state.isFollowingUser);
   const followUser = useAppStore((state) => state.followUser);
   const unfollowUser = useAppStore((state) => state.unfollowUser);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const users = useMemo(() => {
     if (!userId) {
@@ -40,7 +48,7 @@ export const FollowListModal = ({ visible, mode, userId, onClose, onSelectProfil
 
   const title = mode === 'followers' ? 'Followers' : 'Following';
 
-  return (
+  const contentNode = (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
@@ -146,6 +154,8 @@ export const FollowListModal = ({ visible, mode, userId, onClose, onSelectProfil
       </View>
     </Modal>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

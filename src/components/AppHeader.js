@@ -1,16 +1,38 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
 export const AppHeader = ({ title, centered = false, onOpenDrawer }) => {
   const currentUser = useAppStore((state) => state.currentUser);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
   const insets = useSafeAreaInsets();
   const avatarText = currentUser?.avatar || currentUser?.displayName?.charAt(0) || 'U';
+  const containerThemeStyle = {
+    backgroundColor: isDark ? '#000' : '#fff',
+    borderBottomColor: isDark ? '#1f2428' : '#eff3f4',
+  };
+  const titleThemeStyle = {
+    color: isDark ? '#f2f2f2' : '#0f1419',
+    fontSize: 20 * textScale,
+  };
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top, height: 60 + insets.top }]}>
+    <View
+      style={[
+        styles.container,
+        containerThemeStyle,
+        {
+          paddingTop: insets.top,
+          height: 60 + insets.top,
+        },
+      ]}
+    >
       <TouchableOpacity
         style={styles.avatarButton}
         onPress={() => onOpenDrawer?.()}
@@ -27,7 +49,7 @@ export const AppHeader = ({ title, centered = false, onOpenDrawer }) => {
 
       {!centered ? (
         <View style={styles.titleWrap}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, titleThemeStyle]} numberOfLines={1}>
             {title}
           </Text>
         </View>
@@ -35,7 +57,7 @@ export const AppHeader = ({ title, centered = false, onOpenDrawer }) => {
 
       {centered ? (
         <View pointerEvents="none" style={styles.centeredTitleWrap}>
-          <Text style={styles.title} numberOfLines={1}>
+          <Text style={[styles.title, titleThemeStyle]} numberOfLines={1}>
             {title}
           </Text>
         </View>

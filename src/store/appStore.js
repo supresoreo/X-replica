@@ -6,6 +6,8 @@ import { normalizeApiError, setApiAuthToken } from '../services/apiClient';
 const AUTH_TOKEN_KEY = '@xclone_auth_token';
 const LOCAL_STATE_KEY = '@xclone_local_state';
 const ACCOUNT_STATE_KEY_PREFIX = '@xclone_account_state_';
+const DEFAULT_DISPLAY_MODE = 'system';
+const DEFAULT_FONT_SCALE_LEVEL = 1;
 
 const SEED_USERS = [
   {
@@ -259,6 +261,8 @@ const buildPersistedState = (state) => {
     knownUsers: state.knownUsers,
     deviceAccounts: state.deviceAccounts,
     currentUserId: state.currentUserId,
+    displayMode: state.displayMode,
+    fontScaleLevel: state.fontScaleLevel,
   });
 };
 
@@ -541,6 +545,8 @@ export const useAppStore = create((set, get) => ({
   isAuthenticated: false,
   authLoading: false,
   authError: '',
+  displayMode: DEFAULT_DISPLAY_MODE,
+  fontScaleLevel: DEFAULT_FONT_SCALE_LEVEL,
 
   authoredTweets: [],
   tweets: [],
@@ -680,6 +686,11 @@ export const useAppStore = create((set, get) => ({
           deviceAccounts,
           currentUserId,
           currentUser: fallbackUser,
+          displayMode: persistedState?.displayMode || DEFAULT_DISPLAY_MODE,
+          fontScaleLevel:
+            typeof persistedState?.fontScaleLevel === 'number'
+              ? Math.max(0, Math.min(3, persistedState.fontScaleLevel))
+              : DEFAULT_FONT_SCALE_LEVEL,
           authoredTweets: accountState.authoredTweets,
           tweets: accountState.tweets,
           bookmarks: accountState.bookmarks,
@@ -715,6 +726,11 @@ export const useAppStore = create((set, get) => ({
         currentUser: nextCurrentUser,
         knownUsers: reconcileKnownUsers(nextKnownUsers),
         deviceAccounts,
+        displayMode: persistedState?.displayMode || DEFAULT_DISPLAY_MODE,
+        fontScaleLevel:
+          typeof persistedState?.fontScaleLevel === 'number'
+            ? Math.max(0, Math.min(3, persistedState.fontScaleLevel))
+            : DEFAULT_FONT_SCALE_LEVEL,
         isAuthenticated: true,
         authError: '',
         ...(await loadComposedAccountState(nextCurrentUser.id, reconcileKnownUsers(nextKnownUsers))),
@@ -1036,6 +1052,23 @@ export const useAppStore = create((set, get) => ({
     if (mergedState.currentUserId) {
       await persistAccountState(mergedState.currentUserId, mergedState);
     }
+  },
+
+  setDisplayMode: async (mode) => {
+    const allowedModes = ['system', 'day', 'night'];
+    const nextMode = allowedModes.includes(mode) ? mode : DEFAULT_DISPLAY_MODE;
+
+    set({ displayMode: nextMode });
+    const mergedState = { ...get(), displayMode: nextMode };
+    await persistLocalState(mergedState);
+  },
+
+  setFontScaleLevel: async (level) => {
+    const nextLevel = Math.max(0, Math.min(3, Number.isFinite(level) ? level : DEFAULT_FONT_SCALE_LEVEL));
+
+    set({ fontScaleLevel: nextLevel });
+    const mergedState = { ...get(), fontScaleLevel: nextLevel };
+    await persistLocalState(mergedState);
   },
 
   addTweet: (content) => {

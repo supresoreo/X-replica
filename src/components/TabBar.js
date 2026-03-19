@@ -6,6 +6,9 @@ import { useAppStore } from '../store/appStore';
 export const TabBar = ({ activeTab, onTabChange, dark = false }) => {
   const unreadNotifications = useAppStore((state) => state.getUnreadNotificationCount());
   const unreadMessages = useAppStore((state) => state.getUnreadMessageCount());
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const tabs = [
     { id: 'forYou', icon: House, label: 'Home' },
     { id: 'search', icon: Search, label: 'Search' },
@@ -28,7 +31,7 @@ export const TabBar = ({ activeTab, onTabChange, dark = false }) => {
           >
             <View style={styles.iconWrap}>
               <Icon
-                size={24}
+                size={24 * iconScale}
                 color={
                   dark
                     ? isActive
@@ -42,7 +45,7 @@ export const TabBar = ({ activeTab, onTabChange, dark = false }) => {
               />
               {badgeCount > 0 ? (
                 <View style={styles.badge}>
-                  <Text style={styles.badgeText}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
+                  <Text style={[styles.badgeText, { fontSize: 10 * textScale }]}>{badgeCount > 99 ? '99+' : badgeCount}</Text>
                 </View>
               ) : null}
             </View>

@@ -7,8 +7,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 import { ArrowLeft, Eye, EyeOff } from 'lucide-react-native/icons';
+import { useAppStore } from '../../store/appStore';
+import { transformNodeForDisplay } from '../../utils/themeTransform';
 
 export const CreatePasswordScreen = ({
   onBack,
@@ -20,6 +23,12 @@ export const CreatePasswordScreen = ({
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const passwordStrongEnough = password.trim().length >= 8;
   const passwordsMatch = password.length > 0 && password === confirmPassword;
@@ -44,7 +53,7 @@ export const CreatePasswordScreen = ({
     });
   };
 
-  return (
+  const contentNode = (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topRow}>
@@ -116,6 +125,8 @@ export const CreatePasswordScreen = ({
       </View>
     </SafeAreaView>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

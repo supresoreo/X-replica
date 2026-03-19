@@ -6,7 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { Animated, Easing, StatusBar, StyleSheet, View } from 'react-native';
+import { Animated, Easing, StatusBar, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import { ForYouScreen } from './src/screens/ForYouScreen';
@@ -23,6 +23,14 @@ import { SpacesScreen } from './src/screens/SpacesScreen';
 import { CreatorStudioScreen } from './src/screens/CreatorStudioScreen';
 import { CreatorProgramScreen } from './src/screens/CreatorProgramScreen';
 import { InspirationScreen } from './src/screens/InspirationScreen';
+import { SettingsScreen } from './src/screens/SettingsScreen';
+import {
+  AccessibilityDisplayLanguagesScreen,
+  AccessibilitySettingsScreen,
+  DataUsageSettingsScreen,
+  DisplaySettingsScreen,
+  LanguagesSettingsScreen,
+} from './src/screens/AccessibilityDisplayLanguagesScreen';
 import { CreatePostModal } from './src/components/CreatePostModal';
 import { TabBar } from './src/components/TabBar';
 import { SideNavigation } from './src/components/SideNavigation';
@@ -31,6 +39,138 @@ import { MainAuthScreen } from './src/screens/auth/MainAuthScreen';
 import { LoginScreen } from './src/screens/auth/LoginScreen';
 import { RegisterScreen } from './src/screens/auth/RegisterScreen';
 import { CreatePasswordScreen } from './src/screens/auth/CreatePasswordScreen';
+
+const LIGHT_BG_VALUES = new Set(['#fff', '#ffffff', '#f7f9fb', '#eff3f4']);
+const LIGHT_BORDER_VALUES = new Set(['#e6ecf0', '#eff3f4', '#d8e0e5']);
+const DARK_TEXT_VALUES = new Set(['#000', '#000000', '#0f1419', '#111111']);
+const LIGHT_MUTED_TEXT_VALUES = new Set(['#536471', '#657786', '#5b7083']);
+
+const normalizeColorValue = (value) => {
+  if (typeof value !== 'string') {
+    return value;
+  }
+
+  return value.trim().toLowerCase();
+};
+
+const adaptColorByKey = (styleKey, styleValue, isDark) => {
+  if (typeof styleValue !== 'string' || !styleValue.startsWith('#')) {
+    return styleValue;
+  }
+
+  const normalized = normalizeColorValue(styleValue);
+  const normalizedKey = (styleKey || '').toLowerCase();
+  const isBackgroundKey = normalizedKey.includes('backgroundcolor');
+  const isBorderKey = normalizedKey.includes('border') && normalizedKey.includes('color');
+  const isTextColorKey = normalizedKey === 'color' || normalizedKey.includes('textcolor') || normalizedKey.includes('placeholdertextcolor');
+  const isVectorColorKey = normalizedKey === 'fill' || normalizedKey === 'stroke' || normalizedKey.includes('tintcolor');
+
+  if (isBackgroundKey) {
+    if (isDark && LIGHT_BG_VALUES.has(normalized)) {
+      return '#000000';
+    }
+    return styleValue;
+  }
+
+  if (isBorderKey) {
+    if (isDark && LIGHT_BORDER_VALUES.has(normalized)) {
+      return '#2f3336';
+    }
+    return styleValue;
+  }
+
+  if (isTextColorKey || isVectorColorKey) {
+    if (isDark && DARK_TEXT_VALUES.has(normalized)) {
+      return '#f2f2f2';
+    }
+    if (isDark && LIGHT_MUTED_TEXT_VALUES.has(normalized)) {
+      return '#8b98a5';
+    }
+    return styleValue;
+  }
+
+  return styleValue;
+};
+
+const transformStyleObject = (style, isDark, textScale) => {
+  if (!style) {
+    return style;
+  }
+
+  if (Array.isArray(style)) {
+    return style.map((entry) => transformStyleObject(entry, isDark, textScale));
+  }
+
+  if (typeof style === 'number') {
+    return transformStyleObject(StyleSheet.flatten(style), isDark, textScale);
+  }
+
+  if (typeof style !== 'object') {
+    return style;
+  }
+
+  const next = { ...style };
+
+  Object.keys(next).forEach((key) => {
+    next[key] = adaptColorByKey(key, next[key], isDark);
+  });
+
+  if (typeof next.fontSize === 'number') {
+    next.fontSize = next.fontSize * textScale;
+  }
+
+  if (typeof next.lineHeight === 'number') {
+    next.lineHeight = next.lineHeight * textScale;
+  }
+
+  return next;
+};
+
+const transformScreenTree = (node, isDark, textScale, iconScale) => {
+  if (!React.isValidElement(node)) {
+    return node;
+  }
+
+  const nextProps = {};
+  const originalStyle = node.props?.style;
+
+  if (originalStyle) {
+    nextProps.style = transformStyleObject(originalStyle, isDark, textScale);
+  }
+
+  if (typeof node.props?.size === 'number') {
+    nextProps.size = node.props.size * iconScale;
+  }
+
+  if (typeof node.props?.color === 'string') {
+    nextProps.color = adaptColorByKey('color', node.props.color, isDark);
+  }
+
+  if (typeof node.props?.fill === 'string') {
+    nextProps.fill = adaptColorByKey('fill', node.props.fill, isDark);
+  }
+
+  if (typeof node.props?.stroke === 'string') {
+    nextProps.stroke = adaptColorByKey('stroke', node.props.stroke, isDark);
+  }
+
+  if (typeof node.props?.placeholderTextColor === 'string') {
+    nextProps.placeholderTextColor = adaptColorByKey('placeholderTextColor', node.props.placeholderTextColor, isDark);
+  }
+
+  if (node.type === Text || node.type === TextInput) {
+    const baseTextStyle = originalStyle ? transformStyleObject(originalStyle, isDark, textScale) : {};
+    nextProps.style = [baseTextStyle, !originalStyle ? { fontSize: 16 * textScale } : null];
+  }
+
+  if (node.props?.children) {
+    nextProps.children = React.Children.map(node.props.children, (child) =>
+      transformScreenTree(child, isDark, textScale, iconScale)
+    );
+  }
+
+  return React.cloneElement(node, nextProps);
+};
 
 function App() {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
@@ -44,6 +184,9 @@ function App() {
   const currentUser = useAppStore((state) => state.currentUser);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const deviceAccounts = useAppStore((state) => state.deviceAccounts);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemColorScheme = useColorScheme();
 
   const [authStep, setAuthStep] = useState('main');
   const [accountDraft, setAccountDraft] = useState(null);
@@ -81,15 +224,12 @@ function App() {
     setActiveTab(nextTab);
   };
 
-  const isDarkScreen = [
-    'communities',
-    'lists',
-    'spaces',
-    'creatorStudio',
-    'creatorRevenueSharing',
-    'creatorSubscriptions',
-    'inspiration',
-  ].includes(activeTab);
+  const isDarkScreen =
+    displayMode === 'night' ||
+    (displayMode === 'system' && systemColorScheme === 'dark');
+
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const navigateAuth = (nextStep) => {
     clearAuthError();
@@ -226,6 +366,47 @@ function App() {
             onBack={() => handleTabChange('creatorStudio')}
           />
         );
+      case 'settings':
+        return (
+          <SettingsScreen
+            onBack={() => handleTabChange('forYou')}
+            onOpenAccessibilityDisplayLanguages={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+          />
+        );
+      case 'settingsAccessibilityDisplayLanguages':
+        return (
+          <AccessibilityDisplayLanguagesScreen
+            onBack={() => handleTabChange('settings')}
+            onOpenAccessibility={() => handleTabChange('settingsAccessibility')}
+            onOpenDisplay={() => handleTabChange('settingsDisplay')}
+            onOpenLanguages={() => handleTabChange('settingsLanguages')}
+            onOpenDataUsage={() => handleTabChange('settingsDataUsage')}
+          />
+        );
+      case 'settingsAccessibility':
+        return (
+          <AccessibilitySettingsScreen
+            onBack={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+          />
+        );
+      case 'settingsDisplay':
+        return (
+          <DisplaySettingsScreen
+            onBack={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+          />
+        );
+      case 'settingsLanguages':
+        return (
+          <LanguagesSettingsScreen
+            onBack={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+          />
+        );
+      case 'settingsDataUsage':
+        return (
+          <DataUsageSettingsScreen
+            onBack={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+          />
+        );
       default:
         return (
           <ForYouScreen
@@ -283,7 +464,8 @@ function App() {
 
     return (
       <SafeAreaProvider>
-        {renderAuthScreen()}
+        <StatusBar barStyle={isDarkScreen ? 'light-content' : 'dark-content'} backgroundColor={isDarkScreen ? '#000' : '#fff'} />
+        {transformScreenTree(renderAuthScreen(), isDarkScreen, textScale, iconScale)}
       </SafeAreaProvider>
     );
   }
@@ -291,7 +473,7 @@ function App() {
   return (
     <SafeAreaProvider>
       <StatusBar barStyle={isDarkScreen ? 'light-content' : 'dark-content'} backgroundColor={isDarkScreen ? '#000' : '#fff'} />
-      <View style={styles.container}>
+      <View style={[styles.container, isDarkScreen ? styles.containerDark : styles.containerLight]}>
         <Animated.View
           style={[
             styles.screenWrap,
@@ -308,7 +490,7 @@ function App() {
             },
           ]}
         >
-          {renderScreen()}
+          {transformScreenTree(renderScreen(), isDarkScreen, textScale, iconScale)}
         </Animated.View>
         <TabBar
           activeTab={activeTab}
@@ -317,6 +499,7 @@ function App() {
         />
         <SideNavigation
           visible={showSideNavigation}
+          dark={isDarkScreen}
           currentUser={currentUser}
           currentUserId={currentUserId}
           deviceAccounts={deviceAccounts}
@@ -347,7 +530,12 @@ function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+  },
+  containerLight: {
     backgroundColor: '#fff',
+  },
+  containerDark: {
+    backgroundColor: '#000',
   },
   screenWrap: {
     flex: 1,

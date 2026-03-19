@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, RefreshControl, useColorScheme } from 'react-native';
 import { Bookmark } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -8,8 +8,18 @@ import { AppHeader } from '../components/AppHeader';
 export const BookmarksScreen = ({ onOpenDrawer }) => {
   const tweets = useAppStore((state) => state.tweets);
   const refreshAppData = useAppStore((state) => state.refreshAppData);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const [refreshing, setRefreshing] = useState(false);
   const bookmarkedTweets = tweets.filter((t) => t.isBookmarked);
+
+  const palette = isDark
+    ? { bg: '#000000', title: '#f2f2f2', body: '#8b98a5' }
+    : { bg: '#ffffff', title: '#0f1419', body: '#536471' };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -21,7 +31,7 @@ export const BookmarksScreen = ({ onOpenDrawer }) => {
   }, [refreshAppData]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}> 
       <AppHeader title="Bookmarks" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView
@@ -34,9 +44,9 @@ export const BookmarksScreen = ({ onOpenDrawer }) => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Bookmark size={60} color="#536471" strokeWidth={1.5} />
-            <Text style={styles.emptyStateTitle}>Save posts for later</Text>
-            <Text style={styles.emptyStateText}>
+            <Bookmark size={60 * iconScale} color={palette.body} strokeWidth={1.5} />
+            <Text style={[styles.emptyStateTitle, { color: palette.title, fontSize: 24 * textScale }]}>Save posts for later</Text>
+            <Text style={[styles.emptyStateText, { color: palette.body, fontSize: 15 * textScale }]}> 
               Bookmark posts to easily find them again
             </Text>
           </View>

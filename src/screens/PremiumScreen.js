@@ -6,7 +6,7 @@ import {
   Text,
   TouchableOpacity,
   View,
-  Dimensions,
+  useColorScheme,
 } from 'react-native';
 import {
   BadgeCheck,
@@ -24,6 +24,8 @@ import {
   Rocket,
 } from 'lucide-react-native/icons';
 import { AppHeader } from '../components/AppHeader';
+import { useAppStore } from '../store/appStore';
+import { transformNodeForDisplay } from '../utils/themeTransform';
 
 const TIERS = {
   basic: {
@@ -158,9 +160,14 @@ const FeatureItem = ({ icon: Icon, title, description, badge, expandable }) => (
 export const PremiumScreen = ({ onOpenDrawer }) => {
   const [selectedTier, setSelectedTier] = useState('premium');
   const [billingCycle, setBillingCycle] = useState('monthly');
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const scrollRef = useRef(null);
   const fadeAnim = useRef(new Animated.Value(1)).current;
-  const slideAnim = useRef(new Animated.Value(0)).current;
 
   const currentTier = useMemo(() => TIERS[selectedTier], [selectedTier]);
 
@@ -193,7 +200,7 @@ export const PremiumScreen = ({ onOpenDrawer }) => {
     return currentTier.pricing[billingCycle];
   }, [currentTier, billingCycle]);
 
-  return (
+  const contentNode = (
     <View style={styles.container}>
       <AppHeader title="Premium" onOpenDrawer={onOpenDrawer} />
 
@@ -338,6 +345,8 @@ export const PremiumScreen = ({ onOpenDrawer }) => {
       </ScrollView>
     </View>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

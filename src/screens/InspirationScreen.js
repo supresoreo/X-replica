@@ -5,6 +5,7 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
 import { ArrowLeft, Heart, MessageCircle, Repeat2 } from 'lucide-react-native/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -26,6 +27,30 @@ const CONTENT_TYPES = [
 export const InspirationScreen = ({ onBack }) => {
   const insets = useSafeAreaInsets();
   const tweets = useAppStore((state) => state.tweets);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+
+  const palette = isDark
+    ? {
+        bg: '#000000',
+        title: '#f2f2f2',
+        body: '#71767b',
+        border: '#2f3336',
+        pillBorder: '#2f3336',
+        pillActiveText: '#ffffff',
+      }
+    : {
+        bg: '#ffffff',
+        title: '#0f1419',
+        body: '#536471',
+        border: '#d8e0e5',
+        pillBorder: '#d8e0e5',
+        pillActiveText: '#ffffff',
+      };
   
   const [timePeriod, setTimePeriod] = useState('last24h');
   const [contentType, setContentType] = useState('likes');
@@ -44,12 +69,12 @@ export const InspirationScreen = ({ onBack }) => {
   const filteredTweets = getFilteredTweets();
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}> 
       <View style={[styles.header, { paddingTop: insets.top + 8 }]}> 
         <TouchableOpacity style={styles.backButton} activeOpacity={0.84} onPress={onBack}>
-          <ArrowLeft size={28} color="#f2f2f2" />
+          <ArrowLeft size={28 * iconScale} color={palette.title} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Inspiration</Text>
+        <Text style={[styles.headerTitle, { color: palette.title, fontSize: (41 / 2) * textScale }]}>Inspiration</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -68,7 +93,9 @@ export const InspirationScreen = ({ onBack }) => {
             <Text
               style={[
                 styles.timeTabLabel,
+                { color: palette.body, fontSize: (38 / 2) * textScale },
                 timePeriod === period.id && styles.timeTabLabelActive,
+                timePeriod === period.id && { color: palette.title },
               ]}
             >
               {period.label}
@@ -94,15 +121,17 @@ export const InspirationScreen = ({ onBack }) => {
               onPress={() => setContentType(type.id)}
             >
               <Icon
-                size={20}
-                color={isActive ? '#fff' : '#708a95'}
+                size={20 * iconScale}
+                color={isActive ? palette.pillActiveText : palette.body}
                 strokeWidth={2}
                 style={styles.pillIcon}
               />
               <Text
                 style={[
                   styles.pillLabel,
+                  { color: palette.body, fontSize: (38 / 2) * textScale },
                   isActive && styles.pillLabelActive,
+                  isActive && { color: palette.pillActiveText },
                 ]}
               >
                 {type.label}
@@ -120,8 +149,8 @@ export const InspirationScreen = ({ onBack }) => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>No posts yet</Text>
-            <Text style={styles.emptyStateText}>
+            <Text style={[styles.emptyStateTitle, { color: palette.title, fontSize: 24 * textScale }]}>No posts yet</Text>
+            <Text style={[styles.emptyStateText, { color: palette.body, fontSize: 15 * textScale }]}> 
               Check back later for top posts from {TIME_PERIODS.find(p => p.id === timePeriod)?.label.toLowerCase()}
             </Text>
           </View>
@@ -163,6 +192,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: '#2f3336',
     paddingHorizontal: 16,
+    flexDirection: 'row',
   },
   timeTab: {
     paddingVertical: 12,

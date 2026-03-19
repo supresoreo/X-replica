@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
 import { Bell } from 'lucide-react-native/icons';
 import { AppHeader } from '../components/AppHeader';
 import { useAppStore } from '../store/appStore';
@@ -61,19 +61,39 @@ const getNotificationText = (notification) => {
 export const NotificationsScreen = ({ onOpenDrawer }) => {
   const notifications = useAppStore((state) => state.notifications || []);
   const markNotificationsAsRead = useAppStore((state) => state.markNotificationsAsRead);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+
+  const palette = isDark
+    ? {
+        bg: '#000000',
+        border: '#1f2428',
+        title: '#f2f2f2',
+        body: '#8b98a5',
+      }
+    : {
+        bg: '#ffffff',
+        border: '#eff3f4',
+        title: '#0f1419',
+        body: '#536471',
+      };
 
   useEffect(() => {
     markNotificationsAsRead();
   }, [markNotificationsAsRead]);
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
       <AppHeader title="Notifications" onOpenDrawer={onOpenDrawer} />
       
       <ScrollView style={styles.content}>
         {notifications.length ? (
           notifications.map((notification) => (
-            <View key={notification.id} style={styles.notificationRow}>
+            <View key={notification.id} style={[styles.notificationRow, { borderBottomColor: palette.border }]}> 
               <UserAvatar
                 imageUri={notification.actorAvatarImage}
                 fallbackText={notification.actorAvatar || notification.actorDisplayName?.charAt(0)}
@@ -82,11 +102,11 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
               />
               <View style={styles.notificationBody}>
                 <View style={styles.notificationTopRow}>
-                  <Text style={styles.notificationText}>{getNotificationText(notification)}</Text>
-                  <Text style={styles.timeText}>{formatRelativeTime(notification.createdAt)}</Text>
+                  <Text style={[styles.notificationText, { color: palette.title, fontSize: 15 * textScale }]}>{getNotificationText(notification)}</Text>
+                  <Text style={[styles.timeText, { color: palette.body, fontSize: 13 * textScale }]}>{formatRelativeTime(notification.createdAt)}</Text>
                 </View>
                 {!!notification.tweetPreview && (
-                  <Text style={styles.tweetPreview} numberOfLines={2}>
+                  <Text style={[styles.tweetPreview, { color: palette.body, fontSize: 14 * textScale, lineHeight: 20 * textScale }]} numberOfLines={2}>
                     {notification.tweetPreview}
                   </Text>
                 )}
@@ -95,9 +115,9 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Bell size={60} color="#0f1419" strokeWidth={1.5} />
-            <Text style={styles.emptyStateTitle}>Nothing to see here</Text>
-            <Text style={styles.emptyStateText}>
+            <Bell size={60 * iconScale} color={palette.title} strokeWidth={1.5} />
+            <Text style={[styles.emptyStateTitle, { color: palette.title, fontSize: 24 * textScale }]}>Nothing to see here</Text>
+            <Text style={[styles.emptyStateText, { color: palette.body, fontSize: 15 * textScale }]}> 
               When you get notifications, they'll show up here
             </Text>
           </View>

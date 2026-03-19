@@ -6,8 +6,11 @@ import {
   TextInput,
   TouchableOpacity,
   StyleSheet,
+  useColorScheme,
 } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native/icons';
+import { useAppStore } from '../../store/appStore';
+import { transformNodeForDisplay } from '../../utils/themeTransform';
 
 const formatBirthdayInput = (raw) => {
   const digits = raw.replace(/\D/g, '').slice(0, 8);
@@ -37,6 +40,12 @@ export const RegisterScreen = ({ onBack, onContinue }) => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [birthday, setBirthday] = useState('');
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const emailLooksValid = useMemo(() => /\S+@\S+\.\S+/.test(email), [email]);
   const usernameLooksValid = useMemo(() => /^[a-zA-Z0-9_]{4,15}$/.test(username.trim()), [username]);
@@ -63,7 +72,7 @@ export const RegisterScreen = ({ onBack, onContinue }) => {
     });
   };
 
-  return (
+  const contentNode = (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topRow}>
@@ -139,6 +148,8 @@ export const RegisterScreen = ({ onBack, onContinue }) => {
       </View>
     </SafeAreaView>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

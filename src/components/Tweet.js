@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
 import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
@@ -43,10 +43,33 @@ export const Tweet = ({ tweet, onPressProfile }) => {
   const likeTweet = useAppStore((state) => state.likeTweet);
   const retweetTweet = useAppStore((state) => state.retweetTweet);
   const bookmarkTweet = useAppStore((state) => state.bookmarkTweet);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const timestampLabel = formatTweetTime(tweet.createdAt, tweet.timestamp);
 
+  const palette = isDark
+    ? {
+        bg: '#000000',
+        border: '#1f2428',
+        textPrimary: '#f2f2f2',
+        textSecondary: '#8b98a5',
+        actionIcon: '#8b98a5',
+      }
+    : {
+        bg: '#ffffff',
+        border: '#eff3f4',
+        textPrimary: '#0f1419',
+        textSecondary: '#536471',
+        actionIcon: '#536471',
+      };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg, borderBottomColor: palette.border }]}>
       <TouchableOpacity
         style={styles.header}
         activeOpacity={0.85}
@@ -61,54 +84,54 @@ export const Tweet = ({ tweet, onPressProfile }) => {
         />
         <View style={styles.headerText}>
           <View style={styles.nameRow}>
-            <Text style={styles.displayName}>{tweet.displayName}</Text>
-            <Text style={styles.username}>{tweet.username}</Text>
-            <Text style={styles.timestamp}>· {timestampLabel}</Text>
+            <Text style={[styles.displayName, { color: palette.textPrimary, fontSize: 15 * textScale }]}>{tweet.displayName}</Text>
+            <Text style={[styles.username, { color: palette.textSecondary, fontSize: 15 * textScale }]}>{tweet.username}</Text>
+            <Text style={[styles.timestamp, { color: palette.textSecondary, fontSize: 15 * textScale }]}>· {timestampLabel}</Text>
           </View>
         </View>
       </TouchableOpacity>
-      
-      <Text style={styles.content}>{tweet.content}</Text>
-      
+
+      <Text style={[styles.content, { color: palette.textPrimary, fontSize: 15 * textScale, lineHeight: 20 * textScale }]}>{tweet.content}</Text>
+
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionButton} onPress={() => replyTweet(tweet.id)}>
-          <MessageCircle size={18} color="#536471" />
-          <Text style={styles.actionCount}>{tweet.replies}</Text>
+          <MessageCircle size={18 * iconScale} color={palette.actionIcon} />
+          <Text style={[styles.actionCount, { color: palette.textSecondary, fontSize: 13 * textScale }]}>{tweet.replies}</Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => retweetTweet(tweet.id)}
         >
-          <Repeat2 size={18} color={tweet.isRetweeted ? '#00ba7c' : '#536471'} />
-          <Text style={[styles.actionCount, tweet.isRetweeted && styles.retweeted]}>
+          <Repeat2 size={18 * iconScale} color={tweet.isRetweeted ? '#00ba7c' : palette.actionIcon} />
+          <Text style={[styles.actionCount, { color: palette.textSecondary, fontSize: 13 * textScale }, tweet.isRetweeted && styles.retweeted]}>
             {tweet.retweets}
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => likeTweet(tweet.id)}
         >
-          <Heart size={18} color={tweet.isLiked ? '#f91880' : '#536471'} fill={tweet.isLiked ? '#f91880' : 'none'} />
-          <Text style={[styles.actionCount, tweet.isLiked && styles.liked]}>
+          <Heart size={18 * iconScale} color={tweet.isLiked ? '#f91880' : palette.actionIcon} fill={tweet.isLiked ? '#f91880' : 'none'} />
+          <Text style={[styles.actionCount, { color: palette.textSecondary, fontSize: 13 * textScale }, tweet.isLiked && styles.liked]}>
             {tweet.likes}
           </Text>
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.actionButton}>
-          <ChartBar size={18} color="#536471" />
+          <ChartBar size={18 * iconScale} color={palette.actionIcon} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity
           style={styles.actionButton}
           onPress={() => bookmarkTweet(tweet.id)}
         >
-          <Bookmark size={18} color="#536471" fill={tweet.isBookmarked ? '#536471' : 'none'} />
+          <Bookmark size={18 * iconScale} color={palette.actionIcon} fill={tweet.isBookmarked ? palette.actionIcon : 'none'} />
         </TouchableOpacity>
-        
+
         <TouchableOpacity style={styles.actionButton}>
-          <Share2 size={18} color="#536471" />
+          <Share2 size={18 * iconScale} color={palette.actionIcon} />
         </TouchableOpacity>
       </View>
     </View>
@@ -139,23 +162,13 @@ const styles = StyleSheet.create({
   },
   displayName: {
     fontWeight: 'bold',
-    fontSize: 15,
     marginRight: 5,
-    color: '#0f1419',
   },
   username: {
-    color: '#536471',
-    fontSize: 15,
     marginRight: 5,
   },
-  timestamp: {
-    color: '#536471',
-    fontSize: 15,
-  },
+  timestamp: {},
   content: {
-    fontSize: 15,
-    lineHeight: 20,
-    color: '#0f1419',
     marginBottom: 10,
     marginLeft: 50,
   },
@@ -170,10 +183,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  actionCount: {
-    color: '#536471',
-    fontSize: 13,
-  },
+  actionCount: {},
   liked: {
     color: '#f91880',
   },

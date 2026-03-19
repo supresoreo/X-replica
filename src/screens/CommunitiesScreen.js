@@ -5,9 +5,11 @@ import {
   Text,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
 import { Search, UsersRound } from 'lucide-react-native/icons';
 import { AppHeader } from '../components/AppHeader';
+import { useAppStore } from '../store/appStore';
 
 const HOME_LIST = [
   {
@@ -45,6 +47,37 @@ const EXPLORE_TAGS = [
 ];
 
 export const CommunitiesScreen = ({ onOpenDrawer }) => {
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+
+  const palette = isDark
+    ? {
+        bg: '#000000',
+        panel: '#0b0f16',
+        title: '#e7e9ea',
+        body: '#71767b',
+        border: '#2f3336',
+        cardBorder: '#16181c',
+        chipBg: '#0b0f16',
+        joinBg: '#ffffff',
+        joinText: '#0f1419',
+      }
+    : {
+        bg: '#ffffff',
+        panel: '#f7f9fb',
+        title: '#0f1419',
+        body: '#536471',
+        border: '#d8e0e5',
+        cardBorder: '#eff3f4',
+        chipBg: '#ffffff',
+        joinBg: '#0f1419',
+        joinText: '#ffffff',
+      };
+
   const [viewState, setViewState] = useState({
     tab: 'home',
     selectedCategory: EXPLORE_TAGS[0],
@@ -61,26 +94,26 @@ export const CommunitiesScreen = ({ onOpenDrawer }) => {
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}> 
       <View style={styles.headerWrap}>
         <AppHeader title="Communities" centered onOpenDrawer={onOpenDrawer} />
         <View style={styles.headerActions}>
           <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-            <Search size={25} color="#e7e9ea" />
+            <Search size={25 * iconScale} color={palette.title} />
           </TouchableOpacity>
           <TouchableOpacity style={styles.iconButton} activeOpacity={0.8}>
-            <UsersRound size={25} color="#e7e9ea" />
+            <UsersRound size={25 * iconScale} color={palette.title} />
           </TouchableOpacity>
         </View>
       </View>
 
-      <View style={styles.tabBar}>
+      <View style={[styles.tabBar, { borderBottomColor: palette.border }]}> 
         <TouchableOpacity
           style={styles.tabItem}
           activeOpacity={0.8}
           onPress={() => handleTabChange('home')}
         >
-          <Text style={[styles.tabLabel, tab === 'home' && styles.tabLabelActive]}>Home</Text>
+          <Text style={[styles.tabLabel, { color: palette.body, fontSize: 18 * textScale }, tab === 'home' && styles.tabLabelActive, tab === 'home' && { color: palette.title }]}>Home</Text>
           {tab === 'home' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
         <TouchableOpacity
@@ -88,7 +121,7 @@ export const CommunitiesScreen = ({ onOpenDrawer }) => {
           activeOpacity={0.8}
           onPress={() => handleTabChange('explore')}
         >
-          <Text style={[styles.tabLabel, tab === 'explore' && styles.tabLabelActive]}>Explore</Text>
+          <Text style={[styles.tabLabel, { color: palette.body, fontSize: 18 * textScale }, tab === 'explore' && styles.tabLabelActive, tab === 'explore' && { color: palette.title }]}>Explore</Text>
           {tab === 'explore' && <View style={styles.tabIndicator} />}
         </TouchableOpacity>
       </View>
@@ -98,36 +131,36 @@ export const CommunitiesScreen = ({ onOpenDrawer }) => {
           <View style={styles.section}>
             <View style={styles.filterRow}>
               <TouchableOpacity style={styles.trendingChip} activeOpacity={0.85}>
-                <Text style={styles.trendingChipText}>Trending</Text>
+                <Text style={[styles.trendingChipText, { color: palette.title, fontSize: 14 * textScale }]}>Trending</Text>
               </TouchableOpacity>
             </View>
 
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>Discover new Communities</Text>
-              <Text style={styles.muted}>...</Text>
+              <Text style={[styles.sectionTitle, { color: palette.title, fontSize: 34 * textScale }]}>Discover new Communities</Text>
+              <Text style={[styles.muted, { color: palette.body, fontSize: 22 * textScale }]}>...</Text>
             </View>
 
             {HOME_LIST.map((item) => (
-              <View key={item.id} style={styles.communityCard}>
-                <View style={styles.communityAvatar}>
-                  <Text style={styles.communityAvatarText}>{item.name.charAt(0)}</Text>
+              <View key={item.id} style={[styles.communityCard, { borderBottomColor: palette.cardBorder }]}> 
+                <View style={[styles.communityAvatar, { backgroundColor: palette.panel, borderColor: palette.border }]}> 
+                  <Text style={[styles.communityAvatarText, { color: palette.title, fontSize: 20 * textScale }]}>{item.name.charAt(0)}</Text>
                 </View>
                 <View style={styles.communityMeta}>
-                  <Text style={styles.communityName}>{item.name}</Text>
-                  <Text style={styles.communityMembers}>{item.members}</Text>
-                  <Text style={styles.communityCategory}>{item.category}</Text>
-                  <Text style={styles.communityDescription}>{item.description}</Text>
+                  <Text style={[styles.communityName, { color: palette.title, fontSize: 18 * textScale }]}>{item.name}</Text>
+                  <Text style={[styles.communityMembers, { color: palette.body, fontSize: 14 * textScale }]}>{item.members}</Text>
+                  <Text style={[styles.communityCategory, { color: palette.body, fontSize: 13 * textScale }]}>{item.category}</Text>
+                  <Text style={[styles.communityDescription, { color: palette.body, fontSize: 13 * textScale }]}>{item.description}</Text>
                 </View>
                 <View style={styles.joinWrap}>
-                  <TouchableOpacity style={styles.joinButton} activeOpacity={0.85}>
-                    <Text style={styles.joinButtonText}>Join</Text>
+                  <TouchableOpacity style={[styles.joinButton, { borderColor: palette.border, backgroundColor: palette.joinBg }]} activeOpacity={0.85}>
+                    <Text style={[styles.joinButtonText, { color: palette.joinText, fontSize: 13 * textScale }]}>Join</Text>
                   </TouchableOpacity>
                 </View>
               </View>
             ))}
 
             <TouchableOpacity style={styles.linkButton} activeOpacity={0.8}>
-              <Text style={styles.linkText}>Show more</Text>
+              <Text style={[styles.linkText, { fontSize: 16 * textScale }]}>Show more</Text>
             </TouchableOpacity>
           </View>
         ) : (
@@ -142,33 +175,33 @@ export const CommunitiesScreen = ({ onOpenDrawer }) => {
                 return (
                   <TouchableOpacity
                     key={tag}
-                    style={[styles.tagChip, active && styles.tagChipActive]}
+                    style={[styles.tagChip, { borderColor: palette.border, backgroundColor: palette.bg }, active && styles.tagChipActive]}
                     onPress={() => handleCategoryChange(tag)}
                     activeOpacity={0.85}
                   >
-                    <Text style={[styles.tagText, active && styles.tagTextActive]}>{tag}</Text>
+                    <Text style={[styles.tagText, { color: palette.title, fontSize: 14 * textScale }, active && styles.tagTextActive]}>{tag}</Text>
                   </TouchableOpacity>
                 );
               })}
             </ScrollView>
 
-            <View style={styles.placeholderPost}>
-              <Text style={styles.placeholderTitle}>{selectedCategory} Highlights</Text>
-              <Text style={styles.placeholderText}>
+            <View style={[styles.placeholderPost, { borderColor: palette.border, backgroundColor: palette.panel }]}> 
+              <Text style={[styles.placeholderTitle, { color: palette.title, fontSize: 16 * textScale }]}>{selectedCategory} Highlights</Text>
+              <Text style={[styles.placeholderText, { color: palette.body, fontSize: 14 * textScale, lineHeight: 20 * textScale }]}>
                 Placeholder feed cards for {selectedCategory} communities will appear here.
               </Text>
             </View>
 
-            <View style={styles.placeholderPost}>
-              <Text style={styles.placeholderTitle}>Trending in {selectedCategory}</Text>
-              <Text style={styles.placeholderText}>
+            <View style={[styles.placeholderPost, { borderColor: palette.border, backgroundColor: palette.panel }]}> 
+              <Text style={[styles.placeholderTitle, { color: palette.title, fontSize: 16 * textScale }]}>Trending in {selectedCategory}</Text>
+              <Text style={[styles.placeholderText, { color: palette.body, fontSize: 14 * textScale, lineHeight: 20 * textScale }]}>
                 Placeholder trending topics, featured spaces, and pinned threads.
               </Text>
             </View>
 
-            <View style={styles.placeholderPost}>
-              <Text style={styles.placeholderTitle}>Recommended Communities</Text>
-              <Text style={styles.placeholderText}>
+            <View style={[styles.placeholderPost, { borderColor: palette.border, backgroundColor: palette.panel }]}> 
+              <Text style={[styles.placeholderTitle, { color: palette.title, fontSize: 16 * textScale }]}>Recommended Communities</Text>
+              <Text style={[styles.placeholderText, { color: palette.body, fontSize: 14 * textScale, lineHeight: 20 * textScale }]}>
                 Placeholder recommendation tiles for users interested in {selectedCategory}.
               </Text>
             </View>

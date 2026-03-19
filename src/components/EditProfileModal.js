@@ -10,11 +10,13 @@ import {
   TextInput,
   TouchableOpacity,
   View,
+  useColorScheme,
 } from 'react-native';
 import { Camera, Edit2 } from 'lucide-react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
+import { transformNodeForDisplay } from '../utils/themeTransform';
 
 const AVATAR_COLORS = ['#000000', '#1DA1F2', '#FF0000', '#FFD700', '#00CC00', '#FF1493', '#8B008B', '#FF8C00'];
 const BANNER_COLORS = ['#cfd9de', '#1DA1F2', '#FF6B6B', '#4ECDC4', '#FFE66D', '#95E1D3', '#C9ADA7', '#9A8C98'];
@@ -34,6 +36,12 @@ const createDraft = (user) => ({
 export const EditProfileModal = ({ visible, onClose }) => {
   const currentUser = useAppStore((state) => state.currentUser);
   const updateUserProfile = useAppStore((state) => state.updateUserProfile);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const [draft, setDraft] = useState(() => createDraft(currentUser));
   const [tipsEnabled, setTipsEnabled] = useState(false);
   const [isProfessional, setIsProfessional] = useState(false);
@@ -125,7 +133,7 @@ export const EditProfileModal = ({ visible, onClose }) => {
     onClose();
   };
 
-  return (
+  const contentNode = (
     <Modal visible={visible} animationType="slide" onRequestClose={onClose}>
       <View style={styles.container}>
         <View style={styles.header}>
@@ -302,6 +310,8 @@ export const EditProfileModal = ({ visible, onClose }) => {
       </View>
     </Modal>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

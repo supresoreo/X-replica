@@ -7,12 +7,21 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  useColorScheme,
 } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native/icons';
+import { useAppStore } from '../../store/appStore';
+import { transformNodeForDisplay } from '../../utils/themeTransform';
 
 export const LoginScreen = ({ onBack, onLogin, loading, error }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const canContinue = email.trim().length > 4 && password.trim().length >= 8;
 
@@ -23,7 +32,7 @@ export const LoginScreen = ({ onBack, onLogin, loading, error }) => {
     onLogin({ email: email.trim().toLowerCase(), password });
   };
 
-  return (
+  const contentNode = (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
         <View style={styles.topRow}>
@@ -81,6 +90,8 @@ export const LoginScreen = ({ onBack, onLogin, loading, error }) => {
       </View>
     </SafeAreaView>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

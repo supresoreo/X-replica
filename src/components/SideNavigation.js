@@ -35,6 +35,7 @@ const OPEN_GUARD_MS = 250;
 
 export const SideNavigation = ({
   visible,
+  dark = false,
   currentUser,
   currentUserId,
   deviceAccounts = [],
@@ -49,6 +50,32 @@ export const SideNavigation = ({
   const [followListMode, setFollowListMode] = useState(null);
   const insets = useSafeAreaInsets();
   const knownUsers = useAppStore((state) => state.knownUsers);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+  const colors = dark
+    ? {
+        drawerBg: '#000',
+        border: '#16181c',
+        textPrimary: '#fff',
+        textSecondary: '#71767b',
+        textTertiary: '#e7e9ea',
+        divider: '#2f3336',
+        icon: '#fff',
+        sheetBg: '#1e2124',
+        sheetHandle: '#3e4145',
+      }
+    : {
+        drawerBg: '#fff',
+        border: '#d8e0e5',
+        textPrimary: '#0f1419',
+        textSecondary: '#536471',
+        textTertiary: '#22303c',
+        divider: '#e6ecf0',
+        icon: '#0f1419',
+        sheetBg: '#f7f9fb',
+        sheetHandle: '#b6c0c8',
+      };
   const visibleRef = useRef(visible);
   const drawerOpenedAtRef = useRef(0);
   const translateX = useRef(new Animated.Value(-DRAWER_WIDTH)).current;
@@ -158,7 +185,7 @@ export const SideNavigation = ({
   const utilityItems = useMemo(
     () => [
       { key: 'download-grok', label: 'Download Grok', icon: Download },
-      { key: 'settings', label: 'Settings and privacy', icon: Settings },
+      { key: 'settings', label: 'Settings and privacy', icon: Settings, route: 'settings' },
       { key: 'help', label: 'Help Center', icon: CircleQuestionMark },
     ],
     []
@@ -193,9 +220,18 @@ export const SideNavigation = ({
           <Pressable style={StyleSheet.absoluteFill} onPress={handleOverlayPress} />
         </Animated.View>
 
-        <Animated.View style={[styles.drawer, { transform: [{ translateX }] }]}> 
+        <Animated.View
+          style={[
+            styles.drawer,
+            {
+              transform: [{ translateX }],
+              backgroundColor: colors.drawerBg,
+              borderRightColor: colors.border,
+            },
+          ]}
+        > 
           <ScrollView
-            style={styles.scroll}
+            style={[styles.scroll, { backgroundColor: colors.drawerBg }]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: insets.bottom + 28 }]}
           >
             <View style={styles.topRow}>
@@ -214,12 +250,12 @@ export const SideNavigation = ({
                   borderColor="#2f3336"
                 />
                 <View style={styles.badgeBubble}>
-                  <Text style={styles.badgeText}>1</Text>
+                  <Text style={[styles.badgeText, { fontSize: 12 * textScale }]}>1</Text>
                 </View>
               </TouchableOpacity>
 
-              <TouchableOpacity style={styles.moreButton} activeOpacity={0.8} onPress={openAccountSheet}>
-                <CircleEllipsis size={22} color="#fff" />
+              <TouchableOpacity style={[styles.moreButton, { borderColor: colors.divider }]} activeOpacity={0.8} onPress={openAccountSheet}>
+                <CircleEllipsis size={22 * iconScale} color={colors.icon} />
               </TouchableOpacity>
             </View>
 
@@ -237,18 +273,18 @@ export const SideNavigation = ({
                 borderWidth={1}
                 borderColor="#2f3336"
               />
-              <Text style={styles.displayName}>{currentUser?.displayName || 'User'}</Text>
-              <Text style={styles.username}>{currentUser?.username || '@user'}</Text>
+              <Text style={[styles.displayName, { color: colors.textPrimary, fontSize: 28 * textScale }]}>{currentUser?.displayName || 'User'}</Text>
+              <Text style={[styles.username, { color: colors.textSecondary, fontSize: 18 * textScale }]}>{currentUser?.username || '@user'}</Text>
 
               <View style={styles.statsRow}>
                 <TouchableOpacity onPress={() => setFollowListMode('following')}>
-                  <Text style={styles.statText}>
-                    <Text style={styles.statValue}>{currentUser?.following || 0}</Text> Following
+                  <Text style={[styles.statText, { color: colors.textTertiary, fontSize: 17 * textScale }]}>
+                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>{currentUser?.following || 0}</Text> Following
                   </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => setFollowListMode('followers')}>
-                  <Text style={styles.statText}>
-                    <Text style={styles.statValue}>{currentUser?.followers || 0}</Text> Followers
+                  <Text style={[styles.statText, { color: colors.textTertiary, fontSize: 17 * textScale }]}>
+                    <Text style={[styles.statValue, { color: colors.textPrimary }]}>{currentUser?.followers || 0}</Text> Followers
                   </Text>
                 </TouchableOpacity>
               </View>
@@ -264,8 +300,8 @@ export const SideNavigation = ({
                     activeOpacity={0.82}
                     onPress={() => handlePress(item)}
                   >
-                    <Icon size={27} color="#fff" strokeWidth={2.1} />
-                    <Text style={styles.menuLabel}>{item.label}</Text>
+                    <Icon size={27 * iconScale} color={colors.icon} strokeWidth={2.1} />
+                    <Text style={[styles.menuLabel, { color: colors.textPrimary, fontSize: 22 * textScale }]}>{item.label}</Text>
                     {item.badge ? (
                       <View style={styles.newBadge}>
                         <Text style={styles.newBadgeText}>{item.badge}</Text>
@@ -276,7 +312,7 @@ export const SideNavigation = ({
               })}
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { borderBottomColor: colors.divider }]} />
 
             <View style={styles.utilitySection}>
               {utilityItems.map((item) => {
@@ -288,14 +324,14 @@ export const SideNavigation = ({
                     activeOpacity={0.82}
                     onPress={() => handlePress(item)}
                   >
-                    <Icon size={24} color="#fff" strokeWidth={2} />
-                    <Text style={styles.utilityLabel}>{item.label}</Text>
+                    <Icon size={24 * iconScale} color={colors.icon} strokeWidth={2} />
+                    <Text style={[styles.utilityLabel, { color: colors.textPrimary, fontSize: 17 * textScale }]}>{item.label}</Text>
                   </TouchableOpacity>
                 );
               })}
             </View>
 
-            <View style={styles.divider} />
+            <View style={[styles.divider, { borderBottomColor: colors.divider }]} />
 
           </ScrollView>
         </Animated.View>
@@ -309,15 +345,19 @@ export const SideNavigation = ({
             <Animated.View
               style={[
                 styles.sheet,
-                { paddingBottom: insets.bottom + 16, transform: [{ translateY: sheetTranslateY }] },
+                {
+                  paddingBottom: insets.bottom + 16,
+                  transform: [{ translateY: sheetTranslateY }],
+                  backgroundColor: colors.sheetBg,
+                },
               ]}
             >
-              <View style={styles.sheetHandle} />
+              <View style={[styles.sheetHandle, { backgroundColor: colors.sheetHandle }]} />
               <View style={styles.sheetHeader}>
                 <TouchableOpacity activeOpacity={0.7} onPress={closeAccountSheet}>
-                  <Text style={styles.sheetEditText}>Edit</Text>
+                  <Text style={[styles.sheetEditText, { color: colors.textTertiary, fontSize: 15 * textScale }]}>Edit</Text>
                 </TouchableOpacity>
-                <Text style={styles.sheetTitle}>Accounts</Text>
+                <Text style={[styles.sheetTitle, { color: colors.textTertiary, fontSize: 16 * textScale }]}>Accounts</Text>
                 <View style={styles.sheetHeaderSpacer} />
               </View>
               {accountEntries.map((account) => {
@@ -341,8 +381,8 @@ export const SideNavigation = ({
                       size={46}
                     />
                     <View style={styles.sheetAccountTextWrap}>
-                      <Text style={styles.sheetAccountName}>{account.user.displayName}</Text>
-                      <Text style={styles.sheetAccountHandle}>{account.user.username}</Text>
+                      <Text style={[styles.sheetAccountName, { color: colors.textPrimary, fontSize: 16 * textScale }]}>{account.user.displayName}</Text>
+                      <Text style={[styles.sheetAccountHandle, { color: colors.textSecondary, fontSize: 14 * textScale }]}>{account.user.username}</Text>
                     </View>
                     {isActive ? (
                       <View style={styles.sheetCheckCircle}>
@@ -360,7 +400,7 @@ export const SideNavigation = ({
                   onAddAccount?.();
                 }}
               >
-                <Text style={styles.sheetAddAccountText}>Add an account</Text>
+                <Text style={[styles.sheetAddAccountText, { fontSize: 16 * textScale }]}>Add an account</Text>
               </TouchableOpacity>
             </Animated.View>
           </>

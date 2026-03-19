@@ -1,5 +1,5 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl } from 'react-native';
+import { ImageBackground, ScrollView, StyleSheet, Text, TouchableOpacity, View, RefreshControl, useColorScheme } from 'react-native';
 import { Bell, Mail } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -7,6 +7,7 @@ import { AppHeader } from '../components/AppHeader';
 import { EditProfileModal } from '../components/EditProfileModal';
 import { FollowListModal } from '../components/FollowListModal';
 import { UserAvatar } from '../components/UserAvatar';
+import { transformNodeForDisplay } from '../utils/themeTransform';
 
 export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProfile = null }) => {
   const [showEditModal, setShowEditModal] = useState(false);
@@ -21,8 +22,13 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
   const muteNotificationsForUser = useAppStore((state) => state.muteNotificationsForUser);
   const unmuteNotificationsForUser = useAppStore((state) => state.unmuteNotificationsForUser);
   const isNotificationMutedForUser = useAppStore((state) => state.isNotificationMutedForUser);
-  const getCurrentUserId = useAppStore((state) => state.currentUserId);
   const getOrCreateConversation = useAppStore((state) => state.getOrCreateConversation);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const [refreshing, setRefreshing] = useState(false);
   const viewedUser = useMemo(() => {
     if (!profileUserId || profileUserId === currentUser?.id) {
@@ -75,7 +81,7 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
     return null;
   }
 
-  return (
+  const contentNode = (
     <View style={styles.container}>
       <AppHeader title="Profile" onOpenDrawer={onOpenDrawer} />
       
@@ -240,6 +246,8 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
       />
     </View>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

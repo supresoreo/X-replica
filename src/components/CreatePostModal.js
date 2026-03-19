@@ -8,16 +8,24 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  useColorScheme,
 } from 'react-native';
 import { Image, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
+import { transformNodeForDisplay } from '../utils/themeTransform';
 
 export const CreatePostModal = ({ visible, onClose }) => {
 
   const [postText, setPostText] = useState('');
   const addTweet = useAppStore((state) => state.addTweet);
   const currentUser = useAppStore((state) => state.currentUser);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
   const handlePost = () => {
     if (postText.trim()) {
@@ -30,7 +38,7 @@ export const CreatePostModal = ({ visible, onClose }) => {
   const maxCharacters = 280;
   const canPost = postText.trim().length > 0 && characterCount <= maxCharacters;
 
-  return (
+  const contentNode = (
     <Modal
       visible={visible}
       animationType="slide"
@@ -112,6 +120,8 @@ export const CreatePostModal = ({ visible, onClose }) => {
       </KeyboardAvoidingView>
     </Modal>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 

@@ -6,13 +6,23 @@ import {
   TouchableOpacity,
   StyleSheet,
   StatusBar,
+  useColorScheme,
 } from 'react-native';
 import { Mail, Apple } from 'lucide-react-native/icons';
+import { useAppStore } from '../../store/appStore';
+import { transformNodeForDisplay } from '../../utils/themeTransform';
 
 export const MainAuthScreen = ({ onLogin, onRegister, onClose }) => {
-  return (
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+
+  const contentNode = (
     <SafeAreaView style={styles.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle={isDark ? 'light-content' : 'dark-content'} backgroundColor={isDark ? '#000' : '#fff'} />
       <View style={styles.container}>
         <TouchableOpacity
           style={styles.closeButton}
@@ -63,6 +73,8 @@ export const MainAuthScreen = ({ onLogin, onRegister, onClose }) => {
       </View>
     </SafeAreaView>
   );
+
+  return transformNodeForDisplay(contentNode, isDark, textScale, iconScale);
 };
 
 const styles = StyleSheet.create({

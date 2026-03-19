@@ -1,5 +1,5 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, StyleSheet, TouchableOpacity, RefreshControl, useColorScheme } from 'react-native';
 import { Plus } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
@@ -10,6 +10,12 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
   const currentUser = useAppStore((state) => state.currentUser);
   const knownUsers = useAppStore((state) => state.knownUsers);
   const refreshAppData = useAppStore((state) => state.refreshAppData);
+  const displayMode = useAppStore((state) => state.displayMode);
+  const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const systemScheme = useColorScheme();
+  const isDark = displayMode === 'night' || (displayMode === 'system' && systemScheme === 'dark');
+  const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
+  const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const [feedTab, setFeedTab] = useState('forYou');
   const [refreshing, setRefreshing] = useState(false);
 
@@ -50,17 +56,43 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
       ? 'Follow more people to build your Following timeline. Your own tweets will also appear here.'
       : 'Real posts from real users will appear here.';
 
+  const palette = isDark
+    ? {
+        bg: '#000000',
+        border: '#1f2428',
+        tabInactive: '#8b98a5',
+        tabActive: '#f2f2f2',
+        emptyTitle: '#f2f2f2',
+        emptyText: '#8b98a5',
+      }
+    : {
+        bg: '#ffffff',
+        border: '#eff3f4',
+        tabInactive: '#536471',
+        tabActive: '#0f1419',
+        emptyTitle: '#0f1419',
+        emptyText: '#536471',
+      };
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: palette.bg }]}>
       <AppHeader title="𝕏" centered onOpenDrawer={onOpenDrawer} />
 
-      <View style={styles.feedTabsRow}>
+      <View style={[styles.feedTabsRow, { borderBottomColor: palette.border }]}>
         <TouchableOpacity
           style={styles.feedTabButton}
           activeOpacity={0.85}
           onPress={() => setFeedTab('forYou')}
         >
-          <Text style={[styles.feedTabText, feedTab === 'forYou' && styles.feedTabTextActive]}>For you</Text>
+          <Text
+            style={[
+              styles.feedTabText,
+              { color: palette.tabInactive, fontSize: 16 * textScale },
+              feedTab === 'forYou' && [styles.feedTabTextActive, { color: palette.tabActive }],
+            ]}
+          >
+            For you
+          </Text>
           {feedTab === 'forYou' ? <View style={styles.feedTabIndicator} /> : null}
         </TouchableOpacity>
 
@@ -69,7 +101,15 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
           activeOpacity={0.85}
           onPress={() => setFeedTab('following')}
         >
-          <Text style={[styles.feedTabText, feedTab === 'following' && styles.feedTabTextActive]}>Following</Text>
+          <Text
+            style={[
+              styles.feedTabText,
+              { color: palette.tabInactive, fontSize: 16 * textScale },
+              feedTab === 'following' && [styles.feedTabTextActive, { color: palette.tabActive }],
+            ]}
+          >
+            Following
+          </Text>
           {feedTab === 'following' ? <View style={styles.feedTabIndicator} /> : null}
         </TouchableOpacity>
       </View>
@@ -84,14 +124,14 @@ export const ForYouScreen = ({ onCreatePost, onOpenDrawer, onOpenProfile }) => {
           ))
         ) : (
           <View style={styles.emptyState}>
-            <Text style={styles.emptyStateTitle}>{emptyTitle}</Text>
-            <Text style={styles.emptyStateText}>{emptyText}</Text>
+            <Text style={[styles.emptyStateTitle, { color: palette.emptyTitle, fontSize: 24 * textScale }]}>{emptyTitle}</Text>
+            <Text style={[styles.emptyStateText, { color: palette.emptyText, fontSize: 15 * textScale }]}>{emptyText}</Text>
           </View>
         )}
       </ScrollView>
       
       <TouchableOpacity style={styles.fab} onPress={onCreatePost}>
-        <Plus size={42} color="#fff" strokeWidth={2.1} />
+        <Plus size={42 * iconScale} color="#fff" strokeWidth={2.1} />
       </TouchableOpacity>
     </View>
   );
