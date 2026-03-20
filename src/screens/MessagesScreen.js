@@ -13,6 +13,7 @@ import {
 import { ArrowLeft, Send } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { AppHeader } from '../components/AppHeader';
+import { UserAvatar } from '../components/UserAvatar';
 
 export const MessagesScreen = ({ onOpenDrawer }) => {
   const conversations = useAppStore((state) => state.conversations);
@@ -98,9 +99,13 @@ export const MessagesScreen = ({ onOpenDrawer }) => {
               style={[styles.conversation, { borderBottomColor: palette.border }]}
               onPress={() => setSelectedConversation(conv.id)}
             >
-              <View style={[styles.conversationAvatar, { backgroundColor: palette.chipBg }]}> 
-                <Text style={[styles.conversationAvatarText, { color: palette.chipText, fontSize: 16 * textScale }]}>{conv.displayName[0]}</Text>
-              </View>
+              <UserAvatar
+                imageUri={conv.avatarImage}
+                fallbackText={conv.avatar || conv.displayName?.charAt(0) || 'U'}
+                backgroundColor={conv.averageColor || '#000000'}
+                size={48}
+                style={styles.conversationAvatar}
+              />
               <View style={styles.conversationContent}>
                 <View style={styles.conversationHeader}>
                   <Text style={[styles.conversationName, { color: palette.title, fontSize: 15 * textScale }]}>{conv.displayName}</Text>
@@ -143,12 +148,16 @@ export const MessagesScreen = ({ onOpenDrawer }) => {
             <TouchableOpacity onPress={() => setSelectedConversation(null)}>
               <ArrowLeft size={24 * iconScale} color={palette.title} />
             </TouchableOpacity>
-            <View style={[styles.chatAvatar, { backgroundColor: palette.chipBg }]}> 
-              <Text style={[styles.chatAvatarText, { color: palette.chipText, fontSize: 12 * textScale }]}>{selectedConv?.displayName[0]}</Text>
-            </View>
+            <UserAvatar
+              imageUri={selectedConv?.avatarImage}
+              fallbackText={selectedConv?.avatar || selectedConv?.displayName?.charAt(0) || 'U'}
+              backgroundColor={selectedConv?.averageColor || '#000000'}
+              size={36}
+              style={styles.chatAvatar}
+            />
             <View style={styles.chatHeaderText}>
               <Text style={[styles.chatName, { color: palette.title, fontSize: 16 * textScale }]}>{selectedConv?.displayName}</Text>
-              <Text style={[styles.chatUsername, { color: palette.body, fontSize: 14 * textScale }]}>{selectedConv?.username}</Text>
+              <Text style={[styles.chatUsername, { color: palette.body, fontSize: 14 * textScale }]}>{selectedConv?.username || ''}</Text>
             </View>
           </View>
           
@@ -243,18 +252,7 @@ const styles = StyleSheet.create({
     borderBottomColor: '#eff3f4',
   },
   conversationAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#000',
     marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  conversationAvatarText: {
-    color: '#fff',
-    fontSize: 16,
-    fontWeight: 'bold',
   },
   conversationContent: {
     flex: 1,
@@ -307,18 +305,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   chatAvatar: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: '#000',
     marginRight: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  chatAvatarText: {
-    color: '#fff',
-    fontSize: 12,
-    fontWeight: 'bold',
   },
   chatHeaderText: {
     flex: 1,

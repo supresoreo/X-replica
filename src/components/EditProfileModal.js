@@ -12,7 +12,7 @@ import {
   View,
   useColorScheme,
 } from 'react-native';
-import { Camera, Edit2 } from 'lucide-react-native/icons';
+import { Camera, Pen } from 'lucide-react-native/icons';
 import { launchImageLibrary } from 'react-native-image-picker';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
@@ -150,13 +150,13 @@ export const EditProfileModal = ({ visible, onClose }) => {
           {draft.bannerImage ? (
             <ImageBackground source={{ uri: draft.bannerImage }} style={styles.banner} imageStyle={styles.bannerImage}>
               <TouchableOpacity style={styles.editBannerButton} onPress={openBannerOptions}>
-                <Edit2 size={20} color="#ffffff" />
+                <Pen size={20} color="#ffffff" />
               </TouchableOpacity>
             </ImageBackground>
           ) : (
             <View style={[styles.banner, { backgroundColor: draft.banner }]}> 
               <TouchableOpacity style={styles.editBannerButton} onPress={openBannerOptions}>
-                <Edit2 size={20} color="#ffffff" />
+                <Pen size={20} color="#ffffff" />
               </TouchableOpacity>
             </View>
           )}
@@ -204,7 +204,7 @@ export const EditProfileModal = ({ visible, onClose }) => {
                 borderColor="#ffffff"
               />
               <View style={styles.editAvatarIcon}>
-                <Edit2 size={12} color="#ffffff" />
+                <Pen size={12} color="#ffffff" />
               </View>
             </TouchableOpacity>
           </View>

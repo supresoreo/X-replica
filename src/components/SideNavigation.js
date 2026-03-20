@@ -209,6 +209,12 @@ export const SideNavigation = ({
       .filter(Boolean);
   }, [deviceAccounts, knownUsers]);
 
+  const alternateAccountEntries = accountEntries.filter((account) => account.user.id !== currentUserId);
+
+  const previewAccount = alternateAccountEntries[0] || null;
+  const miniAvatarUser = previewAccount?.user || currentUser;
+  const additionalAccountCount = alternateAccountEntries.length;
+
   if (!mounted) {
     return null;
   }
@@ -238,20 +244,30 @@ export const SideNavigation = ({
               <TouchableOpacity
                 style={styles.miniAvatarWrap}
                 activeOpacity={0.82}
-                onPress={() => onNavigate('profile')}
+                onPress={() => {
+                  if (previewAccount) {
+                    onSwitchAccount?.(previewAccount.userId);
+                    onClose?.();
+                    return;
+                  }
+
+                  onNavigate('profile');
+                }}
               >
                 <UserAvatar
-                  imageUri={currentUser?.avatarImage}
-                  fallbackText={currentUser?.avatar || currentUser?.displayName?.charAt(0) || 'U'}
-                  backgroundColor={currentUser?.averageColor || '#171717'}
+                  imageUri={miniAvatarUser?.avatarImage}
+                  fallbackText={miniAvatarUser?.avatar || miniAvatarUser?.displayName?.charAt(0) || 'U'}
+                  backgroundColor={miniAvatarUser?.averageColor || '#171717'}
                   size={36}
                   style={styles.miniAvatar}
                   borderWidth={1}
                   borderColor="#2f3336"
                 />
-                <View style={styles.badgeBubble}>
-                  <Text style={[styles.badgeText, { fontSize: 12 * textScale }]}>1</Text>
-                </View>
+                {additionalAccountCount > 0 ? (
+                  <View style={styles.badgeBubble}>
+                    <Text style={[styles.badgeText, { fontSize: 12 * textScale }]}>{additionalAccountCount}</Text>
+                  </View>
+                ) : null}
               </TouchableOpacity>
 
               <TouchableOpacity style={[styles.moreButton, { borderColor: colors.divider }]} activeOpacity={0.8} onPress={openAccountSheet}>
@@ -457,8 +473,9 @@ const styles = StyleSheet.create({
   },
   topRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
+    gap: 10,
     marginBottom: 24,
   },
   miniAvatarWrap: {

@@ -362,6 +362,77 @@ const updateTweetAuthor = (tweet, user) => {
   };
 };
 
+const conversationMatchesUser = (conversation, user) => {
+  const conversationId = String(conversation?.id || '');
+  const conversationUserId = String(conversation?.userId || '');
+  const userId = String(user?.id || '');
+  const conversationUsername = String(conversation?.username || '').toLowerCase();
+  const userUsername = String(user?.username || '').toLowerCase();
+
+  return (
+    conversationId === userId ||
+    conversationUserId === userId ||
+    (conversationUsername && userUsername && conversationUsername === userUsername)
+  );
+};
+
+const updateConversationParticipant = (conversation, user) => {
+  if (!conversationMatchesUser(conversation, user)) {
+    return conversation;
+  }
+
+  return {
+    ...conversation,
+    userId: user.id,
+    displayName: user.displayName,
+    username: user.username,
+    avatar: user.avatar,
+    avatarImage: user.avatarImage,
+    averageColor: user.averageColor,
+  };
+};
+
+const updateNotificationActor = (notification, user) => {
+  if (notification?.actorId !== user?.id) {
+    return notification;
+  }
+
+  return {
+    ...notification,
+    actorDisplayName: user.displayName,
+    actorUsername: user.username,
+    actorAvatar: user.avatar,
+    actorAvatarImage: user.avatarImage,
+    actorAverageColor: user.averageColor,
+  };
+};
+
+const updateAccountReferencesForUser = (accountState, user) => {
+  const normalizeAuthor = (tweet) => {
+    if (!tweet) {
+      return tweet;
+    }
+
+    if (tweet.userId === user.id || tweet.username === user.username) {
+      return updateTweetAuthor(tweet, user);
+    }
+
+    return tweet;
+  };
+
+  return {
+    ...accountState,
+    authoredTweets: (accountState.authoredTweets || []).map(normalizeAuthor),
+    tweets: (accountState.tweets || []).map(normalizeAuthor),
+    conversations: (accountState.conversations || []).map((conversation) =>
+      updateConversationParticipant(conversation, user)
+    ),
+    notifications: (accountState.notifications || []).map((notification) =>
+      updateNotificationActor(notification, user)
+    ),
+  };
+};
+
 const sortNotifications = (notifications = []) => {
   return [...notifications].sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
 };
@@ -458,6 +529,9 @@ const normalizeTweet = (tweet, author = null) => {
     fromId ||
     new Date().toISOString();
 
+  const mediaType = tweet.mediaType || (tweet.image ? 'image' : null);
+  const mediaUri = tweet.mediaUri || tweet.image || null;
+
   return {
     ...tweet,
     id: tweet.id || `${author?.id || 'tweet'}-${Date.now()}`,
@@ -475,6 +549,9 @@ const normalizeTweet = (tweet, author = null) => {
     isLiked: Boolean(tweet.isLiked),
     isRetweeted: Boolean(tweet.isRetweeted),
     isBookmarked: Boolean(tweet.isBookmarked),
+    mediaType,
+    mediaUri,
+    image: mediaType === 'image' ? mediaUri : null,
   };
 };
 
@@ -529,10 +606,27 @@ const loadComposedAccountState = async (userId, knownUsers) => {
     return getAuthoredTweets(accountState, followedUserId, knownUsers);
   });
 
+  const nextConversations = (baseAccountState.conversations || []).map((conversation) => {
+    const knownConversationUser = knownUsers.find((user) =>
+      conversationMatchesUser(conversation, user)
+    );
+
+    return knownConversationUser
+      ? updateConversationParticipant(conversation, knownConversationUser)
+      : conversation;
+  });
+
+  const nextNotifications = (baseAccountState.notifications || []).map((notification) => {
+    const actor = knownUsers.find((user) => user.id === notification.actorId);
+    return actor ? updateNotificationActor(notification, actor) : notification;
+  });
+
   return {
     ...baseAccountState,
     authoredTweets,
     tweets: dedupeAndSortTweets([...authoredTweets, ...followingTweets]),
+    conversations: nextConversations,
+    notifications: sortNotifications(nextNotifications),
   };
 };
 
@@ -1100,7 +1194,7 @@ updateCurrentUser: async (updates) => {
     await persistLocalState(mergedState);
   },
 
-  addTweet: ({ content, image }) => {
+  addTweet: ({ content, image, mediaType, mediaUri }) => {
   const state = get();
   if (!state.currentUser) {
     return;
@@ -1120,7 +1214,9 @@ updateCurrentUser: async (updates) => {
     avatarImage: updatedAuthor.avatarImage,
     averageColor: updatedAuthor.averageColor,
     content: content || '',
-    image: image || null,
+    mediaType: mediaType || (image ? 'image' : null),
+    mediaUri: mediaUri || image || null,
+    image: mediaType === 'video' ? null : (mediaUri || image || null),
     createdAt: new Date().toISOString(),
     likes: 0,
     retweets: 0,
@@ -1304,7 +1400,7 @@ updateCurrentUser: async (updates) => {
     }
   },
 
-  updateUserProfile: (updates) => {
+  updateUserProfile: async (updates) => {
     const state = get();
     if (!state.currentUser) {
       return;
@@ -1333,17 +1429,39 @@ updateCurrentUser: async (updates) => {
         : tweet
     );
 
+    const nextConversations = (state.conversations || []).map((conversation) =>
+      updateConversationParticipant(conversation, updatedCurrentUser)
+    );
+
+    const nextNotifications = (state.notifications || []).map((notification) =>
+      updateNotificationActor(notification, updatedCurrentUser)
+    );
+
     const nextState = {
       currentUser: updatedCurrentUser,
       knownUsers: nextKnownUsers,
       authoredTweets: nextAuthoredTweets,
       tweets: nextTweets,
+      conversations: nextConversations,
+      notifications: nextNotifications,
     };
 
     set(nextState);
     const mergedState = { ...get(), ...nextState };
-    persistLocalState(mergedState);
-    persistAccountState(mergedState.currentUserId, mergedState);
+    await persistLocalState(mergedState);
+    await persistAccountState(mergedState.currentUserId, mergedState);
+
+    const otherAccountIds = (mergedState.deviceAccounts || [])
+      .map((account) => account.userId)
+      .filter((userId) => userId && userId !== mergedState.currentUserId);
+
+    await Promise.all(
+      otherAccountIds.map(async (accountId) => {
+        const accountState = await loadAccountState(accountId);
+        const updatedAccountState = updateAccountReferencesForUser(accountState, updatedCurrentUser);
+        await persistAccountState(accountId, updatedAccountState);
+      })
+    );
   },
 
   isFollowingUser: (targetUserId) => {
@@ -1489,6 +1607,8 @@ updateCurrentUser: async (updates) => {
   const state = get();
   if (!state.currentUser || !conversationId || !content.trim()) return;
 
+  const recipientUser = state.knownUsers.find((user) => user.id === conversationId);
+
   const newMessage = {
     id: Date.now().toString(),
     conversationId,
@@ -1509,6 +1629,12 @@ updateCurrentUser: async (updates) => {
       conv.id === conversationId
         ? {
             ...conv,
+            userId: recipientUser?.id || conv.userId || conv.id,
+            displayName: recipientUser?.displayName || conv.displayName,
+            username: recipientUser?.username || conv.username || '',
+            avatar: recipientUser?.avatar || conv.avatar || recipientUser?.displayName?.charAt(0) || 'U',
+            avatarImage: recipientUser?.avatarImage || conv.avatarImage || '',
+            averageColor: recipientUser?.averageColor || conv.averageColor || '#000000',
             lastMessage: content,
             timestamp: 'Just now',
             unread: false,
@@ -1541,6 +1667,7 @@ updateCurrentUser: async (updates) => {
   const existingConv = recipientState.conversations.find(
     (c) => c.id === state.currentUserId
   );
+  const senderUser = state.currentUser;
 
   let updatedConversations;
 
@@ -1549,6 +1676,12 @@ updateCurrentUser: async (updates) => {
       conv.id === state.currentUserId
         ? {
             ...conv,
+            userId: senderUser.id,
+            displayName: senderUser.displayName,
+            username: senderUser.username,
+            avatar: senderUser.avatar,
+            avatarImage: senderUser.avatarImage,
+            averageColor: senderUser.averageColor,
             lastMessage: content,
             timestamp: 'Just now',
             unread: true,
@@ -1556,13 +1689,15 @@ updateCurrentUser: async (updates) => {
         : conv
     );
   } else {
-    const senderUser = state.currentUser;
-
     updatedConversations = [
       {
         id: state.currentUserId,
         userId: state.currentUserId,
         displayName: senderUser.displayName,
+        username: senderUser.username,
+        avatar: senderUser.avatar,
+        avatarImage: senderUser.avatarImage,
+        averageColor: senderUser.averageColor,
         lastMessage: content,
         timestamp: 'Just now',
         unread: true,
@@ -1580,25 +1715,14 @@ updateCurrentUser: async (updates) => {
   await persistAccountState(recipientId, updatedRecipientState);
 },
 
-updateProfileAvatar: (uri) =>
-  set((state) => {
-    if (!state.currentUser) return state;
+updateProfileAvatar: async (uri) => {
+  const state = get();
+  if (!state.currentUser) {
+    return;
+  }
 
-    const updatedUser = {
-      ...state.currentUser,
-      avatarImage: uri,
-    };
-
-    return {
-      // update current user
-      currentUser: updatedUser,
-
-      // also update in knownUsers list
-      knownUsers: state.knownUsers.map((user) =>
-        user.id === updatedUser.id ? updatedUser : user
-      ),
-    };
-  }),
+  await get().updateUserProfile({ avatarImage: uri || '' });
+},
 
   recordUnreadMessage: async (conversationId, senderId) => {
     const state = get();
@@ -1637,7 +1761,25 @@ updateProfileAvatar: (uri) =>
     );
 
     if (existingConversation) {
-      return existingConversation;
+      const refreshedConversation = {
+        ...existingConversation,
+        userId: knownUser.id,
+        displayName: knownUser.displayName,
+        username: knownUser.username,
+        avatar: knownUser.avatar,
+        avatarImage: knownUser.avatarImage,
+        averageColor: knownUser.averageColor,
+      };
+
+      const nextConversations = state.conversations.map((conv) =>
+        conv.id === existingConversation.id ? refreshedConversation : conv
+      );
+
+      set({ conversations: nextConversations });
+      const mergedState = { ...get(), conversations: nextConversations };
+      persistAccountState(state.currentUserId, mergedState);
+
+      return refreshedConversation;
     }
 
     // Create new conversation
@@ -1645,6 +1787,10 @@ updateProfileAvatar: (uri) =>
       id: userId,
       userId,
       displayName: knownUser.displayName,
+      username: knownUser.username,
+      avatar: knownUser.avatar,
+      avatarImage: knownUser.avatarImage,
+      averageColor: knownUser.averageColor,
       lastMessage: 'No messages yet',
       timestamp: 'Now',
       unread: false,

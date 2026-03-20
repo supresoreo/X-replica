@@ -9,9 +9,11 @@ import {
   KeyboardAvoidingView,
   Platform,
   useColorScheme,
+  Image as RNImage,
 } from 'react-native';
 import { launchImageLibrary } from 'react-native-image-picker';
-import { Image, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
+import { Image as ImageIcon, Video as VideoIcon, ChartBar, Smile, MapPin, X } from 'lucide-react-native/icons';
+import Video from 'react-native-video';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 import { transformNodeForDisplay } from '../utils/themeTransform';
@@ -19,7 +21,7 @@ import { transformNodeForDisplay } from '../utils/themeTransform';
 export const CreatePostModal = ({ visible, onClose }) => {
 
   const [postText, setPostText] = useState('');
-  const [selectedImage, setSelectedImage] = useState(null);
+  const [selectedMedia, setSelectedMedia] = useState(null);
   const addTweet = useAppStore((state) => state.addTweet);
   const currentUser = useAppStore((state) => state.currentUser);
   const displayMode = useAppStore((state) => state.displayMode);
@@ -29,32 +31,39 @@ export const CreatePostModal = ({ visible, onClose }) => {
   const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
 
-  const pickImage = async () => {
-  const result = await launchImageLibrary({
-    mediaType: 'photo',
-    quality: 0.8,
-  });
+  const pickMedia = async (kind) => {
+    const result = await launchImageLibrary({
+      mediaType: kind === 'video' ? 'video' : 'photo',
+      quality: 0.8,
+      videoQuality: 'medium',
+      selectionLimit: 1,
+    });
 
-  if (!result.didCancel && result.assets && result.assets.length > 0) {
-    setSelectedImage(result.assets[0].uri);
-  }
-};
+    if (!result.didCancel && result.assets && result.assets.length > 0) {
+      const asset = result.assets[0];
+      setSelectedMedia({
+        uri: asset.uri,
+        type: kind,
+      });
+    }
+  };
 
   const handlePost = () => {
-  if (postText.trim() || selectedImage) {
+  if (postText.trim() || selectedMedia?.uri) {
     addTweet({
       content: postText,
-      image: selectedImage,
+      mediaType: selectedMedia?.type || null,
+      mediaUri: selectedMedia?.uri || null,
     });
 
     setPostText('');
-    setSelectedImage(null);
+    setSelectedMedia(null);
     onClose();
   }
 };
   const characterCount = postText.length;
   const maxCharacters = 280;
-  const canPost = postText.trim().length > 0 && characterCount <= maxCharacters;
+  const canPost = (postText.trim().length > 0 || Boolean(selectedMedia?.uri)) && characterCount <= maxCharacters;
 
   const contentNode = (
     <Modal
@@ -108,19 +117,33 @@ export const CreatePostModal = ({ visible, onClose }) => {
             maxLength={maxCharacters}
           />
 
-          {selectedImage && (
+          {selectedMedia?.uri && (
             <View style={styles.imagePreviewContainer}>
-              <Image
-                source={{ uri: selectedImage }}
-                style={styles.imagePreview}
-              />
+              {selectedMedia.type === 'video' ? (
+                <Video
+                  source={{ uri: selectedMedia.uri }}
+                  style={styles.imagePreview}
+                  paused={false}
+                  muted
+                  repeat
+                  resizeMode="cover"
+                />
+              ) : (
+                <RNImage
+                  source={{ uri: selectedMedia.uri }}
+                  style={styles.imagePreview}
+                />
+              )}
             </View>
           )}
 
           <View style={styles.footer}>
             <View style={styles.options}>
-              <TouchableOpacity style={styles.optionButton} onPress={pickImage}>
-                <Image size={20} color="#1d9bf0" />
+              <TouchableOpacity style={styles.optionButton} onPress={() => pickMedia('image')}>
+                <ImageIcon size={20} color="#1d9bf0" />
+              </TouchableOpacity>
+              <TouchableOpacity style={styles.optionButton} onPress={() => pickMedia('video')}>
+                <VideoIcon size={20} color="#1d9bf0" />
               </TouchableOpacity>
               <TouchableOpacity style={styles.optionButton}>
                 <ChartBar size={20} color="#1d9bf0" />

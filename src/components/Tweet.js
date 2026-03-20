@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from 'react-native';
-import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar } from 'lucide-react-native/icons';
+import React, { useMemo, useState } from 'react';
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme, Image } from 'react-native';
+import { MessageCircle, Repeat2, Heart, Bookmark, Share2, ChartBar, Volume2, VolumeX } from 'lucide-react-native/icons';
+import Video from 'react-native-video';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from './UserAvatar';
 
@@ -51,6 +52,20 @@ export const Tweet = ({ tweet, onPressProfile }) => {
   const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
   const timestampLabel = formatTweetTime(tweet.createdAt, tweet.timestamp);
+  const [isMuted, setIsMuted] = useState(true);
+
+  const mediaType = useMemo(() => {
+    if (tweet.mediaType) {
+      return tweet.mediaType;
+    }
+
+    if (tweet.mediaUri || tweet.image) {
+      return 'image';
+    }
+
+    return null;
+  }, [tweet.image, tweet.mediaType, tweet.mediaUri]);
+  const mediaUri = tweet.mediaUri || tweet.image || null;
 
   const palette = isDark
     ? {
@@ -92,6 +107,32 @@ export const Tweet = ({ tweet, onPressProfile }) => {
       </TouchableOpacity>
 
       <Text style={[styles.content, { color: palette.textPrimary, fontSize: 15 * textScale, lineHeight: 20 * textScale }]}>{tweet.content}</Text>
+
+      {mediaUri ? (
+        <View style={styles.mediaWrap}>
+          {mediaType === 'video' ? (
+            <>
+              <Video
+                source={{ uri: mediaUri }}
+                style={styles.media}
+                paused={false}
+                muted={isMuted}
+                repeat
+                resizeMode="cover"
+              />
+              <TouchableOpacity
+                style={styles.muteButton}
+                onPress={() => setIsMuted((prev) => !prev)}
+                activeOpacity={0.85}
+              >
+                {isMuted ? <VolumeX size={16} color="#ffffff" /> : <Volume2 size={16} color="#ffffff" />}
+              </TouchableOpacity>
+            </>
+          ) : (
+            <Image source={{ uri: mediaUri }} style={styles.media} />
+          )}
+        </View>
+      ) : null}
 
       <View style={styles.actions}>
         <TouchableOpacity style={styles.actionButton} onPress={() => replyTweet(tweet.id)}>
@@ -171,6 +212,29 @@ const styles = StyleSheet.create({
   content: {
     marginBottom: 10,
     marginLeft: 50,
+  },
+  mediaWrap: {
+    marginLeft: 50,
+    marginBottom: 10,
+    borderRadius: 14,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#0f1419',
+  },
+  media: {
+    width: '100%',
+    aspectRatio: 16 / 9,
+  },
+  muteButton: {
+    position: 'absolute',
+    right: 10,
+    bottom: 10,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   actions: {
     flexDirection: 'row',
