@@ -121,12 +121,24 @@ export const CreatePostModal = ({ visible, onClose }) => {
             <View style={styles.imagePreviewContainer}>
               {selectedMedia.type === 'video' ? (
                 <Video
+                  key={`preview-video-${selectedMedia.uri}`}
                   source={{ uri: selectedMedia.uri }}
                   style={styles.imagePreview}
                   paused={false}
                   muted
                   repeat
                   resizeMode="cover"
+                  rate={1}
+                  progressUpdateInterval={500}
+                  bufferConfig={{
+                    minBufferMs: 15000,
+                    maxBufferMs: 50000,
+                    bufferForPlaybackMs: 2500,
+                    bufferForPlaybackAfterRebufferMs: 5000,
+                  }}
+                  onError={() => {
+                    // Silently handle errors for smooth playback
+                  }}
                 />
               ) : (
                 <RNImage

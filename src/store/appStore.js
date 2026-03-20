@@ -1161,9 +1161,55 @@ updateCurrentUser: async (updates) => {
   },
 
   logout: async () => {
+    const state = get();
+    const currentUserId = state.currentUserId;
+    
+    // Remove the logged-out account from deviceAccounts
+    const remainingAccounts = (state.deviceAccounts || []).filter(
+      (account) => account.userId !== currentUserId
+    );
+
     setApiAuthToken(null);
     await AsyncStorage.removeItem(AUTH_TOKEN_KEY);
 
+    // If there are other accounts, switch to the most recent one
+    if (remainingAccounts.length > 0) {
+      const nextAccount = remainingAccounts[0]; // Most recent account (they're sorted by lastUsedAt)
+      const nextUser = resolveCurrentUser(state.knownUsers, nextAccount.userId);
+
+      if (nextAccount?.token && nextUser) {
+        setApiAuthToken(nextAccount.token);
+        await AsyncStorage.setItem(AUTH_TOKEN_KEY, nextAccount.token);
+        const accountState = await loadComposedAccountState(nextUser.id, state.knownUsers);
+
+        const nextState = {
+          authToken: nextAccount.token,
+          currentUserId: nextUser.id,
+          currentUser: nextUser,
+          deviceAccounts: remainingAccounts,
+          isAuthenticated: true,
+          authError: '',
+          authoredTweets: accountState.authoredTweets,
+          tweets: accountState.tweets,
+          bookmarks: accountState.bookmarks,
+          conversations: accountState.conversations,
+          messages: accountState.messages,
+          notifications: accountState.notifications,
+          mutedNotifications: accountState.mutedNotifications,
+          unreadMessages: accountState.unreadMessages,
+          searchQuery: accountState.searchQuery,
+          searchResults: accountState.searchResults,
+          searchHistory: accountState.searchHistory,
+        };
+
+        set(nextState);
+        await persistLocalState({ ...get(), ...nextState });
+        await persistAccountState(nextUser.id, { ...get(), ...nextState });
+        return;
+      }
+    }
+
+    // No other accounts available - log out completely and go to register screen
     set({
       currentUser: null,
       currentUserId: null,
@@ -1176,13 +1222,15 @@ updateCurrentUser: async (updates) => {
       mutedNotifications: [],
       searchQuery: '',
       searchHistory: [],
-  searchState: 'idle',
-  searchError: '',
+      searchState: 'idle',
+      searchError: '',
       searchResults: {
         users: [],
         tweets: [],
       },
+      deviceAccounts: remainingAccounts,
     });
+    await persistLocalState(get());
   },
 
   addSearchHistoryEntry: async (query) => {

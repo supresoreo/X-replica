@@ -547,8 +547,12 @@ function App() {
               onBack={() => setSettingsScreen('your-account')}
               logout={async () => {
                 await logout();
-                handleTabChange('forYou');
-                setSettingsScreen('settings');
+                // Only navigate to forYou if still authenticated (switched to another account)
+                // If not authenticated, app will automatically route to auth screen
+                if (useAppStore.getState().isAuthenticated) {
+                  handleTabChange('forYou');
+                  setSettingsScreen('settings');
+                }
               }}
             />
           );

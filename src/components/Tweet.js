@@ -143,12 +143,24 @@ export const Tweet = ({ tweet, onPressProfile, onPressTweet, onPressMedia }) => 
               {mediaType === 'video' ? (
                 <>
                   <Video
+                    key={`video-${tweet.id}`}
                     source={{ uri: mediaUri }}
                     style={styles.media}
                     paused={false}
                     muted={isMuted}
                     repeat
                     resizeMode="cover"
+                    rate={1}
+                    progressUpdateInterval={500}
+                    bufferConfig={{
+                      minBufferMs: 15000,
+                      maxBufferMs: 50000,
+                      bufferForPlaybackMs: 2500,
+                      bufferForPlaybackAfterRebufferMs: 5000,
+                    }}
+                    onError={() => {
+                      // Silently handle errors for smooth playback
+                    }}
                   />
                   <TouchableOpacity
                     style={styles.muteButton}
