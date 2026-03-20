@@ -1,11 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, RefreshControl, useColorScheme } from 'react-native';
+import { View, Text, ScrollView, RefreshControl, useColorScheme } from 'react-native';
 import { Bookmark } from 'lucide-react-native/icons';
 import { useAppStore } from '../store/appStore';
 import { Tweet } from '../components/Tweet';
 import { AppHeader } from '../components/AppHeader';
+import { styles } from '../styles/screens/BookmarksScreen.styles';
 
-export const BookmarksScreen = ({ onOpenDrawer }) => {
+export const BookmarksScreen = ({ onOpenDrawer, onOpenProfile, onOpenTweet }) => {
   const tweets = useAppStore((state) => state.tweets);
   const refreshAppData = useAppStore((state) => state.refreshAppData);
   const displayMode = useAppStore((state) => state.displayMode);
@@ -40,7 +41,13 @@ export const BookmarksScreen = ({ onOpenDrawer }) => {
       >
         {bookmarkedTweets.length > 0 ? (
           bookmarkedTweets.map((tweet) => (
-            <Tweet key={tweet.id} tweet={tweet} />
+            <Tweet
+              key={tweet.id}
+              tweet={tweet}
+              onPressProfile={onOpenProfile}
+              onPressTweet={onOpenTweet}
+              onPressMedia={onOpenTweet}
+            />
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -55,31 +62,3 @@ export const BookmarksScreen = ({ onOpenDrawer }) => {
     </View>
   );
 };
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    marginTop: 100,
-  },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f1419',
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#536471',
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-});

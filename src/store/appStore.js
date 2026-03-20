@@ -437,6 +437,20 @@ const sortNotifications = (notifications = []) => {
   return [...notifications].sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
 };
 
+const getUnreadNotificationsCountForAccount = async (accountId) => {
+  if (!accountId) {
+    return 0;
+  }
+  
+  try {
+    const accountState = await loadAccountState(accountId);
+    const unreadNotifs = (accountState.notifications || []).filter((notif) => !notif.read);
+    return unreadNotifs.length;
+  } catch {
+    return 0;
+  }
+};
+
 const createNotification = ({ type, actor, targetUserId, tweet = null, message = '' }) => {
   return {
     id: `${targetUserId}-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
@@ -552,6 +566,7 @@ const normalizeTweet = (tweet, author = null) => {
     mediaType,
     mediaUri,
     image: mediaType === 'image' ? mediaUri : null,
+    _replies: Array.isArray(tweet._replies) ? tweet._replies : [],
   };
 };
 
@@ -573,7 +588,11 @@ const dedupeAndSortTweets = (tweets) => {
     const existingTime = Date.parse(existing.createdAt || '');
     const nextTime = Date.parse(normalized.createdAt || '');
     if (Number.isNaN(existingTime) || nextTime >= existingTime) {
-      tweetsById.set(normalized.id, { ...existing, ...normalized });
+      tweetsById.set(normalized.id, {
+        ...existing,
+        ...normalized,
+        _replies: normalized._replies && normalized._replies.length > 0 ? normalized._replies : (existing._replies || []),
+      });
     }
   });
 
@@ -690,6 +709,33 @@ updateCurrentUser: async (updates) => {
 
   getUnreadNotificationCount: () => {
     return (get().notifications || []).filter((entry) => !entry.read).length;
+  },
+
+  getUnreadNotificationCountForAccount: async (accountId) => {
+    return getUnreadNotificationsCountForAccount(accountId);
+  },
+
+  getUnreadNotificationCountsForOtherAccounts: async () => {
+    const state = get();
+    const otherAccountIds = (state.deviceAccounts || [])
+      .map((account) => account.userId)
+      .filter((userId) => userId && userId !== state.currentUserId);
+
+    if (otherAccountIds.length === 0) {
+      return {};
+    }
+
+    const counts = {};
+    await Promise.all(
+      otherAccountIds.map(async (accountId) => {
+        const count = await getUnreadNotificationsCountForAccount(accountId);
+        if (count > 0) {
+          counts[accountId] = count;
+        }
+      })
+    );
+
+    return counts;
   },
 
   markNotificationsAsRead: async () => {
@@ -1224,6 +1270,7 @@ updateCurrentUser: async (updates) => {
     isLiked: false,
     isRetweeted: false,
     isBookmarked: false,
+    _replies: [],
   };
 
   const normalizedTweet = normalizeTweet(newTweet, updatedAuthor);
@@ -1257,23 +1304,57 @@ updateCurrentUser: async (updates) => {
 },
 
   replyTweet: (id) => {
+    // Just a no-op placeholder - actual reply submission is done via submitReply
+    if (!id) {
+      return;
+    }
+  },
+
+  submitReply: async (tweetId, replyContent) => {
     const state = get();
     const actor = state.currentUser;
-    if (!actor) {
-      return;
+    if (!actor || !tweetId || !replyContent.trim()) {
+      return { ok: false };
     }
 
-    const targetTweet = state.tweets.find((tweet) => tweet.id === id);
+    const targetTweet = state.tweets.find((tweet) => tweet.id === tweetId);
     if (!targetTweet) {
-      return;
+      return { ok: false };
     }
 
+    // Create the reply object
+    const newReply = {
+      id: `${actor.id}-reply-${Date.now()}`,
+      tweetId,
+      userId: actor.id,
+      username: actor.username,
+      displayName: actor.displayName,
+      avatar: actor.avatar,
+      avatarImage: actor.avatarImage,
+      averageColor: actor.averageColor,
+      content: replyContent.trim(),
+      createdAt: new Date().toISOString(),
+      likes: 0,
+      isLiked: false,
+    };
+
+    // Update the target tweet to increment reply count and store the reply
     const nextState = {
       tweets: state.tweets.map((tweet) =>
-        tweet.id === id
+        tweet.id === tweetId
           ? {
               ...tweet,
               replies: (tweet.replies || 0) + 1,
+              _replies: [...(tweet._replies || []), newReply],
+            }
+          : tweet
+      ),
+      authoredTweets: state.authoredTweets.map((tweet) =>
+        tweet.id === tweetId
+          ? {
+              ...tweet,
+              replies: (tweet.replies || 0) + 1,
+              _replies: [...(tweet._replies || []), newReply],
             }
           : tweet
       ),
@@ -1290,6 +1371,14 @@ updateCurrentUser: async (updates) => {
         createNotification({ type: 'reply', actor, targetUserId: targetTweet.userId, tweet: targetTweet })
       );
     }
+
+    return { ok: true };
+  },
+
+  getRepliesForTweet: (tweetId) => {
+    const state = get();
+    const tweet = state.tweets.find((t) => t.id === tweetId);
+    return (tweet?._replies || []).sort((a, b) => Date.parse(b.createdAt || '') - Date.parse(a.createdAt || ''));
   },
 
   likeTweet: (id) => {
@@ -1307,6 +1396,15 @@ updateCurrentUser: async (updates) => {
     const willLike = !targetTweet.isLiked;
     const nextState = {
       tweets: state.tweets.map((tweet) =>
+        tweet.id === id
+          ? {
+              ...tweet,
+              isLiked: !tweet.isLiked,
+              likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
+            }
+          : tweet
+      ),
+      authoredTweets: state.authoredTweets.map((tweet) =>
         tweet.id === id
           ? {
               ...tweet,
@@ -1353,6 +1451,15 @@ updateCurrentUser: async (updates) => {
             }
           : tweet
       ),
+      authoredTweets: state.authoredTweets.map((tweet) =>
+        tweet.id === id
+          ? {
+              ...tweet,
+              isRetweeted: !tweet.isRetweeted,
+              retweets: tweet.isRetweeted ? tweet.retweets - 1 : tweet.retweets + 1,
+            }
+          : tweet
+      ),
     };
 
     set(nextState);
@@ -1381,10 +1488,20 @@ updateCurrentUser: async (updates) => {
     }
 
     const willBookmark = !targetTweet.isBookmarked;
+    const updatedTweets = state.tweets.map((tweet) =>
+      tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
+    );
+    const updatedAuthoredTweets = state.authoredTweets.map((tweet) =>
+      tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
+    );
+    const updatedBookmarks = willBookmark
+      ? [...state.bookmarks, targetTweet]
+      : state.bookmarks.filter((tweet) => tweet.id !== id);
+
     const nextState = {
-      tweets: state.tweets.map((tweet) =>
-        tweet.id === id ? { ...tweet, isBookmarked: !tweet.isBookmarked } : tweet
-      ),
+      tweets: updatedTweets,
+      authoredTweets: updatedAuthoredTweets,
+      bookmarks: updatedBookmarks,
     };
 
     set(nextState);

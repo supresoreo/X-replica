@@ -1,9 +1,10 @@
-import React, { useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView, useColorScheme } from 'react-native';
+import React, { useEffect, useMemo } from 'react';
+import { View, Text, ScrollView, useColorScheme, TouchableOpacity } from 'react-native';
 import { Bell } from 'lucide-react-native/icons';
 import { AppHeader } from '../components/AppHeader';
 import { useAppStore } from '../store/appStore';
 import { UserAvatar } from '../components/UserAvatar';
+import { styles } from '../styles/screens/NotificationsScreen.styles';
 
 const formatRelativeTime = (createdAt) => {
   const parsed = Date.parse(createdAt || '');
@@ -58,8 +59,9 @@ const getNotificationText = (notification) => {
   }
 };
 
-export const NotificationsScreen = ({ onOpenDrawer }) => {
+export const NotificationsScreen = ({ onOpenDrawer, onOpenTweet, onSelectProfile }) => {
   const notifications = useAppStore((state) => state.notifications || []);
+  const tweets = useAppStore((state) => state.tweets || []);
   const markNotificationsAsRead = useAppStore((state) => state.markNotificationsAsRead);
   const displayMode = useAppStore((state) => state.displayMode);
   const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
@@ -74,17 +76,35 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
         border: '#1f2428',
         title: '#f2f2f2',
         body: '#8b98a5',
+        rowActiveOpacity: 0.85,
       }
     : {
         bg: '#ffffff',
         border: '#eff3f4',
         title: '#0f1419',
         body: '#536471',
+        rowActiveOpacity: 0.84,
       };
 
   useEffect(() => {
     markNotificationsAsRead();
   }, [markNotificationsAsRead]);
+
+  const handleNotificationPress = (notification) => {
+    // For 'follow' notifications, navigate to the actor's profile
+    if (notification.type === 'follow') {
+      onSelectProfile?.(notification.actorId);
+      return;
+    }
+
+    // For other notifications (like, reply, repost, bookmark), navigate to the tweet
+    if (notification.tweetId) {
+      const tweet = tweets.find((t) => t.id === notification.tweetId);
+      if (tweet) {
+        onOpenTweet?.(tweet);
+      }
+    }
+  };
 
   return (
     <View style={[styles.container, { backgroundColor: palette.bg }]}>
@@ -93,7 +113,12 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
       <ScrollView style={styles.content}>
         {notifications.length ? (
           notifications.map((notification) => (
-            <View key={notification.id} style={[styles.notificationRow, { borderBottomColor: palette.border }]}> 
+            <TouchableOpacity
+              key={notification.id}
+              activeOpacity={palette.rowActiveOpacity}
+              style={[styles.notificationRow, { borderBottomColor: palette.border }]}
+              onPress={() => handleNotificationPress(notification)}
+            >
               <UserAvatar
                 imageUri={notification.actorAvatarImage}
                 fallbackText={notification.actorAvatar || notification.actorDisplayName?.charAt(0)}
@@ -111,7 +136,7 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
                   </Text>
                 )}
               </View>
-            </View>
+            </TouchableOpacity>
           ))
         ) : (
           <View style={styles.emptyState}>
@@ -127,65 +152,3 @@ export const NotificationsScreen = ({ onOpenDrawer }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-  },
-  content: {
-    flex: 1,
-  },
-  notificationRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-    paddingHorizontal: 15,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: '#eff3f4',
-  },
-  notificationBody: {
-    flex: 1,
-  },
-  notificationTopRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    justifyContent: 'space-between',
-    gap: 8,
-  },
-  notificationText: {
-    flex: 1,
-    fontSize: 15,
-    color: '#0f1419',
-    lineHeight: 21,
-  },
-  timeText: {
-    fontSize: 13,
-    color: '#536471',
-  },
-  tweetPreview: {
-    marginTop: 4,
-    fontSize: 14,
-    color: '#536471',
-    lineHeight: 20,
-  },
-  emptyState: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 40,
-    marginTop: 100,
-  },
-  emptyStateTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#0f1419',
-    marginTop: 20,
-    marginBottom: 8,
-  },
-  emptyStateText: {
-    fontSize: 15,
-    color: '#536471',
-    textAlign: 'center',
-    maxWidth: 300,
-  },
-});

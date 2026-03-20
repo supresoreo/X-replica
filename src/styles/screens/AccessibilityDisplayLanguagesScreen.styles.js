@@ -1,0 +1,282 @@
+import { StyleSheet } from 'react-native';
+
+export const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#000',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    marginBottom: 12,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  headerTextWrap: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  title: {
+    color: '#f2f2f2',
+    fontSize: 40 / 2,
+    fontWeight: '800',
+    textAlign: 'center',
+  },
+  username: {
+    color: '#6f7a83',
+    fontSize: 16,
+    marginTop: 2,
+  },
+  rightSpacer: {
+    width: 36,
+  },
+  description: {
+    color: '#6e7680',
+    fontSize: 33 / 2,
+    lineHeight: 22,
+    marginHorizontal: 16,
+    marginBottom: 12,
+  },
+  content: {
+    flex: 1,
+  },
+  contentInner: {
+    paddingHorizontal: 14,
+    paddingBottom: 110,
+  },
+  contentInnerLeaf: {
+    paddingBottom: 110,
+  },
+  descriptionBlock: {
+    color: '#6e7680',
+    fontSize: 33 / 2,
+    lineHeight: 25,
+    marginHorizontal: 16,
+    marginBottom: 16,
+  },
+  itemRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 16,
+  },
+  iconFallback: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#5a636d',
+  },
+  itemTextWrap: {
+    flex: 1,
+  },
+  itemTitle: {
+    color: '#f2f2f2',
+    fontSize: 37 / 2,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  itemDescription: {
+    color: '#6e7680',
+    fontSize: 33 / 2,
+    lineHeight: 22,
+  },
+  sectionHeading: {
+    color: '#f1f3f5',
+    fontSize: 22,
+    fontWeight: '800',
+    paddingHorizontal: 16,
+    paddingTop: 18,
+    paddingBottom: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#1f2428',
+  },
+  settingRow: {
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2428',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  settingTextWrap: {
+    flex: 1,
+  },
+  settingLabel: {
+    color: '#f2f2f2',
+    fontSize: 36 / 2,
+    fontWeight: '700',
+    marginBottom: 2,
+  },
+  settingDescription: {
+    color: '#6e7680',
+    fontSize: 16,
+    lineHeight: 24,
+    marginTop: 6,
+    paddingRight: 8,
+  },
+  rowValue: {
+    color: '#818994',
+    fontSize: 17,
+    marginRight: 2,
+  },
+  themeCardsWrap: {
+    flexDirection: 'row',
+    gap: 10,
+    paddingHorizontal: 16,
+    marginBottom: 14,
+  },
+  themeCard: {
+    flex: 1,
+    height: 126,
+    borderWidth: 1,
+    borderColor: '#1f2428',
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#000',
+  },
+  themeCardActive: {
+    backgroundColor: '#0f1420',
+    borderColor: '#0f1420',
+  },
+  themeGlyph: {
+    color: '#f2f2f2',
+    fontSize: 34,
+    marginBottom: 8,
+  },
+  themeIcon: {
+    marginBottom: 8,
+  },
+  themeLabel: {
+    color: '#8a929a',
+    fontSize: 18,
+  },
+  themeLabelActive: {
+    color: '#f2f2f2',
+  },
+  tweetPreviewCard: {
+    borderTopWidth: 1,
+    borderBottomWidth: 1,
+    borderColor: '#1f2428',
+    marginTop: 2,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  previewBrand: {
+    color: '#f2f2f2',
+    fontSize: 20,
+    fontWeight: '800',
+    marginRight: 10,
+  },
+  previewUserWrap: {
+    flex: 1,
+  },
+  previewName: {
+    color: '#f2f2f2',
+    fontSize: 17,
+    fontWeight: '700',
+  },
+  previewMeta: {
+    color: '#8b929a',
+    fontSize: 16,
+  },
+  previewClose: {
+    color: '#a3a9b0',
+    fontSize: 18,
+    fontWeight: '700',
+  },
+  previewContent: {
+    color: '#d8dde2',
+    fontSize: 18,
+    lineHeight: 30,
+  },
+  previewActions: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  previewAction: {
+    color: '#74808a',
+    fontSize: 22,
+  },
+  sliderWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingTop: 18,
+  },
+  sliderText: {
+    color: '#d7dbe0',
+    fontSize: 30 / 2,
+    marginRight: 10,
+  },
+  sliderTextLarge: {
+    color: '#d7dbe0',
+    fontSize: 24,
+    marginLeft: 10,
+  },
+  sliderTrack: {
+    flex: 1,
+    height: 3,
+    backgroundColor: '#55606a',
+    borderRadius: 2,
+    position: 'relative',
+    justifyContent: 'space-between',
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 2,
+  },
+  sliderStepTouch: {
+    width: 44,
+    height: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginHorizontal: -2,
+  },
+  sliderDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#79828c',
+  },
+  sliderDotActive: {
+    backgroundColor: '#f4f6f8',
+  },
+  sliderThumb: {
+    position: 'absolute',
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f4f6f8',
+    top: -20,
+    marginLeft: -22,
+  },
+  leafSection: {
+    borderBottomWidth: 1,
+    borderBottomColor: '#1f2428',
+    paddingVertical: 16,
+  },
+  leafTitle: {
+    color: '#f2f2f2',
+    fontSize: 18,
+    fontWeight: '700',
+    marginBottom: 6,
+  },
+  leafBody: {
+    color: '#6e7680',
+    fontSize: 15,
+    lineHeight: 22,
+  },
+});

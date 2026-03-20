@@ -48,11 +48,37 @@ export const SideNavigation = ({
   const [mounted, setMounted] = useState(visible);
   const [sheetVisible, setSheetVisible] = useState(false);
   const [followListMode, setFollowListMode] = useState(null);
+  const [unreadCounts, setUnreadCounts] = useState({});
   const insets = useSafeAreaInsets();
   const knownUsers = useAppStore((state) => state.knownUsers);
   const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const getUnreadNotificationCountsForOtherAccounts = useAppStore(
+    (state) => state.getUnreadNotificationCountsForOtherAccounts
+  );
   const textScale = [0.92, 1, 1.08, 1.16][fontScaleLevel] || 1;
   const iconScale = [0.9, 1, 1.1, 1.2][fontScaleLevel] || 1;
+
+  useEffect(() => {
+    if (!visible || !deviceAccounts.length) {
+      return;
+    }
+
+    let isMounted = true;
+
+    const loadUnreadCounts = async () => {
+      const counts = await getUnreadNotificationCountsForOtherAccounts();
+      if (isMounted) {
+        setUnreadCounts(counts);
+      }
+    };
+
+    loadUnreadCounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [visible, deviceAccounts, getUnreadNotificationCountsForOtherAccounts]);
+
   const colors = dark
     ? {
         drawerBg: '#000',
@@ -214,6 +240,7 @@ export const SideNavigation = ({
   const previewAccount = alternateAccountEntries[0] || null;
   const miniAvatarUser = previewAccount?.user || currentUser;
   const additionalAccountCount = alternateAccountEntries.length;
+  const totalUnreadFromOthers = Object.values(unreadCounts).reduce((sum, count) => sum + count, 0);
 
   if (!mounted) {
     return null;
@@ -263,9 +290,11 @@ export const SideNavigation = ({
                   borderWidth={1}
                   borderColor="#2f3336"
                 />
-                {additionalAccountCount > 0 ? (
+                {totalUnreadFromOthers > 0 ? (
                   <View style={styles.badgeBubble}>
-                    <Text style={[styles.badgeText, { fontSize: 12 * textScale }]}>{additionalAccountCount}</Text>
+                    <Text style={[styles.badgeText, { fontSize: 12 * textScale }]}>
+                      {totalUnreadFromOthers}
+                    </Text>
                   </View>
                 ) : null}
               </TouchableOpacity>
@@ -400,11 +429,20 @@ export const SideNavigation = ({
                       <Text style={[styles.sheetAccountName, { color: colors.textPrimary, fontSize: 16 * textScale }]}>{account.user.displayName}</Text>
                       <Text style={[styles.sheetAccountHandle, { color: colors.textSecondary, fontSize: 14 * textScale }]}>{account.user.username}</Text>
                     </View>
-                    {isActive ? (
-                      <View style={styles.sheetCheckCircle}>
-                        <Text style={styles.sheetCheckMark}>✓</Text>
-                      </View>
-                    ) : null}
+                    <View style={styles.sheetAccountTrailingContent}>
+                      {unreadCounts[account.userId] ? (
+                        <View style={styles.unreadNotificationBadge}>
+                          <Text style={[styles.unreadNotificationBadgeText, { fontSize: 12 * textScale }]}>
+                            {unreadCounts[account.userId]}
+                          </Text>
+                        </View>
+                      ) : null}
+                      {isActive ? (
+                        <View style={styles.sheetCheckCircle}>
+                          <Text style={styles.sheetCheckMark}>✓</Text>
+                        </View>
+                      ) : null}
+                    </View>
                   </TouchableOpacity>
                 );
               })}
@@ -683,6 +721,25 @@ const styles = StyleSheet.create({
   },
   sheetAccountTextWrap: {
     flex: 1,
+  },
+  sheetAccountTrailingContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  unreadNotificationBadge: {
+    minWidth: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#f91880',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+  },
+  unreadNotificationBadgeText: {
+    color: '#fff',
+    fontSize: 12,
+    fontWeight: '700',
   },
   sheetAccountName: {
     color: '#e7e9ea',

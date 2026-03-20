@@ -17,7 +17,8 @@ import { SpacesScreen } from './src/screens/SpacesScreen';
 import { CreatorStudioScreen } from './src/screens/CreatorStudioScreen';
 import { CreatorProgramScreen } from './src/screens/CreatorProgramScreen';
 import { InspirationScreen } from './src/screens/InspirationScreen';
-import { SettingsScreen } from './src/screens/SettingsScreens';
+import { SettingsScreen, YourAccountScreen, AccountInformationScreen } from './src/screens/SettingsScreens';
+import { TweetDetailScreen } from './src/screens/TweetDetailScreen';
 import {
   AccessibilityDisplayLanguagesScreen,
   AccessibilitySettingsScreen,
@@ -40,6 +41,30 @@ const DARK_TEXT_VALUES = new Set(['#000', '#000000', '#0f1419', '#111111']);
 const LIGHT_MUTED_TEXT_VALUES = new Set(['#536471', '#657786', '#5b7083']);
 const LAST_ACTIVE_TAB_KEY = '@xclone_last_active_tab';
 const RESTORABLE_TABS = new Set([
+  'forYou',
+  'search',
+  'grok',
+  'notifications',
+  'messages',
+  'profile',
+  'bookmarks',
+  'premium',
+  'communities',
+  'lists',
+  'spaces',
+  'creatorStudio',
+  'creatorRevenueSharing',
+  'creatorSubscriptions',
+  'inspiration',
+  'settings',
+  'settingsAccessibilityDisplayLanguages',
+  'settingsAccessibility',
+  'settingsDisplay',
+  'settingsLanguages',
+  'settingsDataUsage',
+]);
+
+const MAIN_TABS = new Set([
   'forYou',
   'search',
   'grok',
@@ -199,11 +224,13 @@ function App() {
   const switchAccount = useAppStore((state) => state.switchAccount);
   const hydrateAuth = useAppStore((state) => state.hydrateAuth);
   const clearAuthError = useAppStore((state) => state.clearAuthError);
+  const logout = useAppStore((state) => state.logout);
   const currentUser = useAppStore((state) => state.currentUser);
   const currentUserId = useAppStore((state) => state.currentUserId);
   const deviceAccounts = useAppStore((state) => state.deviceAccounts);
   const displayMode = useAppStore((state) => state.displayMode);
   const fontScaleLevel = useAppStore((state) => state.fontScaleLevel);
+  const tweets = useAppStore((state) => state.tweets);
   const systemColorScheme = useColorScheme();
 
   const [authStep, setAuthStep] = useState('main');
@@ -212,8 +239,11 @@ function App() {
 
   const [activeTab, setActiveTab] = useState('forYou');
   const [selectedProfileUserId, setSelectedProfileUserId] = useState(null);
+  const [selectedTweetId, setSelectedTweetId] = useState(null);
+  const [tweetReturnTab, setTweetReturnTab] = useState('forYou');
   const [showCreatePost, setShowCreatePost] = useState(false);
   const [showSideNavigation, setShowSideNavigation] = useState(false);
+  const [settingsScreen, setSettingsScreen] = useState('settings');
   const [screenAnim] = useState(() => new Animated.Value(1));
   const [showStartupSplash, setShowStartupSplash] = useState(true);
   const [startupTabReady, setStartupTabReady] = useState(false);
@@ -308,6 +338,9 @@ function App() {
 
   const handleTabChange = (nextTab) => {
     setActiveTab(nextTab);
+    if (nextTab !== 'settings') {
+      setSettingsScreen('settings');
+    }
   };
 
   const isDarkScreen =
@@ -375,6 +408,25 @@ function App() {
     handleTabChange('profile');
   };
 
+  const handleOpenTweet = (tweet) => {
+    const tweetId = tweet?.id;
+    if (!tweetId) {
+      return;
+    }
+
+    if (MAIN_TABS.has(activeTab)) {
+      setTweetReturnTab(activeTab);
+    }
+
+    setSelectedTweetId(tweetId);
+    handleTabChange('tweetDetail');
+  };
+
+  const handleCloseTweetDetail = () => {
+    setSelectedTweetId(null);
+    handleTabChange(tweetReturnTab || 'forYou');
+  };
+
   const handleOpenDrawer = () => {
     setShowSideNavigation(true);
   };
@@ -387,6 +439,7 @@ function App() {
             onCreatePost={() => setShowCreatePost(true)}
             onOpenDrawer={handleOpenDrawer}
             onOpenProfile={handleOpenProfileFromTweet}
+            onOpenTweet={handleOpenTweet}
           />
         );
       case 'search':
@@ -394,7 +447,16 @@ function App() {
       case 'grok':
         return <GrokScreen onOpenDrawer={handleOpenDrawer} />;
       case 'notifications':
-        return <NotificationsScreen onOpenDrawer={handleOpenDrawer} />;
+        return (
+          <NotificationsScreen
+            onOpenDrawer={handleOpenDrawer}
+            onOpenTweet={handleOpenTweet}
+            onSelectProfile={(userId) => {
+              setSelectedProfileUserId(userId);
+              handleTabChange('profile');
+            }}
+          />
+        );
       case 'messages':
         return <MessagesScreen onOpenDrawer={handleOpenDrawer} />;
       case 'profile':
@@ -402,6 +464,7 @@ function App() {
           <ProfileScreen
             onOpenDrawer={handleOpenDrawer}
             profileUserId={selectedProfileUserId}
+            onOpenTweet={handleOpenTweet}
             onSelectProfile={(userId, targetTab) => {
               if (targetTab === 'messages') {
                 setSelectedProfileUserId(null);
@@ -414,7 +477,13 @@ function App() {
           />
         );
       case 'bookmarks':
-        return <BookmarksScreen onOpenDrawer={handleOpenDrawer} />;
+        return (
+          <BookmarksScreen
+            onOpenDrawer={handleOpenDrawer}
+            onOpenProfile={handleOpenProfileFromTweet}
+            onOpenTweet={handleOpenTweet}
+          />
+        );
       case 'premium':
         return <PremiumScreen onOpenDrawer={handleOpenDrawer} />;
       case 'communities':
@@ -450,13 +519,45 @@ function App() {
         return (
           <InspirationScreen
             onBack={() => handleTabChange('creatorStudio')}
+            onOpenProfile={handleOpenProfileFromTweet}
+            onOpenTweet={handleOpenTweet}
           />
         );
+      case 'tweetDetail': {
+        const selectedTweet = tweets.find((tweet) => tweet.id === selectedTweetId) || null;
+        return (
+          <TweetDetailScreen
+            tweet={selectedTweet}
+            onBack={handleCloseTweetDetail}
+            onOpenProfile={handleOpenProfileFromTweet}
+          />
+        );
+      }
       case 'settings':
+        if (settingsScreen === 'your-account') {
+          return (
+            <YourAccountScreen
+              onBack={() => setSettingsScreen('settings')}
+              onSelectAccountInfo={() => setSettingsScreen('account-information')}
+            />
+          );
+        } else if (settingsScreen === 'account-information') {
+          return (
+            <AccountInformationScreen
+              onBack={() => setSettingsScreen('your-account')}
+              logout={async () => {
+                await logout();
+                handleTabChange('forYou');
+                setSettingsScreen('settings');
+              }}
+            />
+          );
+        }
         return (
           <SettingsScreen
             onBack={() => handleTabChange('forYou')}
             onOpenAccessibilityDisplayLanguages={() => handleTabChange('settingsAccessibilityDisplayLanguages')}
+            onOpenYourAccount={() => setSettingsScreen('your-account')}
           />
         );
       case 'settingsAccessibilityDisplayLanguages':
@@ -569,11 +670,13 @@ function App() {
       >
         {transformScreenTree(renderScreen(), isDarkScreen, textScale, iconScale)}
       </Animated.View>
-      <TabBar
-        activeTab={activeTab}
-        onTabChange={handleTabChange}
-        dark={isDarkScreen}
-      />
+      {MAIN_TABS.has(activeTab) ? (
+        <TabBar
+          activeTab={activeTab}
+          onTabChange={handleTabChange}
+          dark={isDarkScreen}
+        />
+      ) : null}
       <SideNavigation
         visible={showSideNavigation}
         dark={isDarkScreen}

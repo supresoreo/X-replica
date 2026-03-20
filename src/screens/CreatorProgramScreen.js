@@ -1,12 +1,12 @@
 import React from 'react';
 import {
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
   useColorScheme,
 } from 'react-native';
+import { styles } from '../styles/screens/CreatorProgramScreen.styles';
 import { ArrowLeft, ChevronRight, CircleQuestionMark } from 'lucide-react-native/icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAppStore } from '../store/appStore';
@@ -103,127 +103,3 @@ export const CreatorProgramScreen = ({ program = 'revenue', onBack }) => {
   );
 };
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#000',
-  },
-  header: {
-    paddingHorizontal: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  headerIconButton: {
-    width: 36,
-    height: 36,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  content: {
-    flex: 1,
-  },
-  contentInner: {
-    paddingHorizontal: 16,
-    paddingTop: 38,
-    paddingBottom: 110,
-  },
-  title: {
-    color: '#f3f3f3',
-    fontSize: 56 / 2,
-    textAlign: 'center',
-    fontWeight: '800',
-    marginBottom: 8,
-  },
-  subtitle: {
-    color: '#767f87',
-    fontSize: 48 / 2,
-    textAlign: 'center',
-    lineHeight: 34,
-    marginBottom: 24,
-  },
-  ctaButton: {
-    height: 58,
-    backgroundColor: '#f5f5f5',
-    borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 18,
-  },
-  ctaButtonText: {
-    color: '#0f1113',
-    fontSize: 43 / 2,
-    fontWeight: '700',
-  },
-  linkButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    marginBottom: 24,
-  },
-  linkText: {
-    color: '#1d9bf0',
-    fontSize: 44 / 2,
-    fontWeight: '500',
-  },
-  card: {
-    borderWidth: 1,
-    borderColor: '#2f3336',
-    borderRadius: 20,
-    padding: 16,
-    marginBottom: 14,
-  },
-  cardTitle: {
-    color: '#f2f2f2',
-    fontSize: 52 / 2,
-    fontWeight: '700',
-    marginBottom: 6,
-  },
-  cardDescription: {
-    color: '#7a838b',
-    fontSize: 42 / 2,
-    lineHeight: 28,
-    marginBottom: 14,
-  },
-  cardMediaPlaceholder: {
-    height: 290,
-    borderRadius: 16,
-    backgroundColor: '#020615',
-    borderWidth: 1,
-    borderColor: '#0f1525',
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  mockPhone: {
-    width: '80%',
-    height: '78%',
-    borderRadius: 40,
-    borderWidth: 3,
-    borderColor: '#4a4f58',
-    backgroundColor: '#05070b',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  mockBanner: {
-    width: '110%',
-    borderRadius: 12,
-    backgroundColor: '#272932',
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-  },
-  mockBannerTitle: {
-    color: '#f2f2f2',
-    fontSize: 32 / 2,
-    fontWeight: '700',
-    marginBottom: 4,
-  },
-  mockBannerAmount: {
-    color: '#adb3be',
-    fontSize: 30 / 2,
-  },
-});
