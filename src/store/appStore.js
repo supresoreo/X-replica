@@ -567,6 +567,7 @@ const normalizeTweet = (tweet, author = null) => {
     mediaUri,
     image: mediaType === 'image' ? mediaUri : null,
     _replies: Array.isArray(tweet._replies) ? tweet._replies : [],
+    likedByIds: Array.isArray(tweet.likedByIds) ? tweet.likedByIds : [],
   };
 };
 
@@ -1319,6 +1320,7 @@ updateCurrentUser: async (updates) => {
     isRetweeted: false,
     isBookmarked: false,
     _replies: [],
+    likedByIds: [],
   };
 
   const normalizedTweet = normalizeTweet(newTweet, updatedAuthor);
@@ -1442,6 +1444,15 @@ updateCurrentUser: async (updates) => {
     }
 
     const willLike = !targetTweet.isLiked;
+    const likedByIds = Array.isArray(targetTweet.likedByIds) ? [...targetTweet.likedByIds] : [];
+    
+    // Add or remove actor ID from likedByIds
+    if (willLike && !likedByIds.includes(actor.id)) {
+      likedByIds.push(actor.id);
+    } else if (!willLike && likedByIds.includes(actor.id)) {
+      likedByIds.splice(likedByIds.indexOf(actor.id), 1);
+    }
+
     const nextState = {
       tweets: state.tweets.map((tweet) =>
         tweet.id === id
@@ -1449,6 +1460,7 @@ updateCurrentUser: async (updates) => {
               ...tweet,
               isLiked: !tweet.isLiked,
               likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
+              likedByIds,
             }
           : tweet
       ),
@@ -1458,6 +1470,7 @@ updateCurrentUser: async (updates) => {
               ...tweet,
               isLiked: !tweet.isLiked,
               likes: tweet.isLiked ? tweet.likes - 1 : tweet.likes + 1,
+              likedByIds,
             }
           : tweet
       ),

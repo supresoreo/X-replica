@@ -15,6 +15,7 @@ import { styles } from '../styles/screens/ProfileScreen.styles';
 export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProfile = null, onOpenTweet = null }) => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [followListMode, setFollowListMode] = useState(null);
+  const [activeTab, setActiveTab] = useState('tweets');
   const currentUser = useAppStore((state) => state.currentUser);
   const knownUsers = useAppStore((state) => state.knownUsers);
   const isFollowingUser = useAppStore((state) => state.isFollowingUser);
@@ -42,9 +43,59 @@ export const ProfileScreen = ({ onOpenDrawer, profileUserId = null, onSelectProf
   }, [currentUser, knownUsers, profileUserId]);
   const isOwnProfile = viewedUser?.id === currentUser?.id;
   const isNotificationMuted = viewedUser?.id ? isNotificationMutedForUser(viewedUser.id) : false;
-  const userTweets = tweets.filter(
-    (tweet) => tweet.userId === viewedUser?.id || tweet.username === viewedUser?.username
-  );
+  
+  // Filter tweets based on active tab
+  const filteredTweets = useMemo(() => {
+    const userAuthoredTweets = tweets.filter(
+      (tweet) => tweet.userId === viewedUser?.id || tweet.username === viewedUser?.username
+    );
+
+    switch (activeTab) {
+      case 'tweets':
+        // Show original tweets (not replies)
+        return userAuthoredTweets.filter((tweet) => !tweet.inReplyTo && !tweet.replyToId);
+      
+      case 'replies':
+        // Show all replies the user has made
+        const allReplies = [];
+        tweets.forEach((tweet) => {
+          if (tweet._replies && Array.isArray(tweet._replies)) {
+            tweet._replies.forEach((reply) => {
+              if (reply.userId === viewedUser?.id || reply.username === viewedUser?.username) {
+                // Create a tweet-like object for the reply
+                allReplies.push({
+                  ...reply,
+                  tweetId: tweet.id,
+                  parentTweet: tweet,
+                  isReply: true,
+                });
+              }
+            });
+          }
+        });
+        return allReplies.sort((a, b) => 
+          Date.parse(b.createdAt || '') - Date.parse(a.createdAt || '')
+        );
+      
+      case 'media':
+        // Show tweets with media (images or videos)
+        return userAuthoredTweets.filter(
+          (tweet) => tweet.mediaUri || tweet.image || tweet.mediaType
+        );
+      
+      case 'likes':
+        // Show tweets the user has liked
+        return tweets.filter((tweet) => {
+          const likedByIds = tweet.likedByIds || [];
+          return likedByIds.includes(viewedUser?.id);
+        });
+      
+      default:
+        return userAuthoredTweets;
+    }
+  }, [tweets, viewedUser?.id, viewedUser?.username, activeTab]);
+
+  const userTweets = filteredTweets;
   const suggestedUsers = useMemo(() => {
     return knownUsers
       .filter((user) => user.id !== currentUser?.id)
@@ -205,18 +256,33 @@ const handleChangeAvatar = useCallback(() => {
         </View>
         
         <View style={styles.tabs}>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabTextActive}>Posts</Text>
-            <View style={styles.tabIndicator} />
+          <TouchableOpacity 
+            style={styles.tab}
+            onPress={() => setActiveTab('tweets')}
+          >
+            <Text style={activeTab === 'tweets' ? styles.tabTextActive : styles.tabText}>Posts</Text>
+            {activeTab === 'tweets' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Replies</Text>
+          <TouchableOpacity 
+            style={styles.tab}
+            onPress={() => setActiveTab('replies')}
+          >
+            <Text style={activeTab === 'replies' ? styles.tabTextActive : styles.tabText}>Replies</Text>
+            {activeTab === 'replies' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Media</Text>
+          <TouchableOpacity 
+            style={styles.tab}
+            onPress={() => setActiveTab('media')}
+          >
+            <Text style={activeTab === 'media' ? styles.tabTextActive : styles.tabText}>Media</Text>
+            {activeTab === 'media' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
-          <TouchableOpacity style={styles.tab}>
-            <Text style={styles.tabText}>Likes</Text>
+          <TouchableOpacity 
+            style={styles.tab}
+            onPress={() => setActiveTab('likes')}
+          >
+            <Text style={activeTab === 'likes' ? styles.tabTextActive : styles.tabText}>Likes</Text>
+            {activeTab === 'likes' && <View style={styles.tabIndicator} />}
           </TouchableOpacity>
         </View>
         
