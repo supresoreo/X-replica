@@ -39,14 +39,14 @@ export const MainAuthScreen = ({ onLogin, onRegister, onClose }) => {
         </View>
 
         <View style={styles.actionsSection}>
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.9}>
+          <TouchableOpacity style={[styles.socialButton, isDark && styles.socialButtonDark]} activeOpacity={0.9}>
             <Mail size={18} color="#111" />
-            <Text style={styles.socialButtonText}>Continue with Google</Text>
+            <Text style={[styles.socialButtonText, isDark && styles.socialButtonTextDark]}>Continue with Google</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity style={styles.socialButton} activeOpacity={0.9}>
+          <TouchableOpacity style={[styles.socialButton, isDark && styles.socialButtonDark]} activeOpacity={0.9}>
             <Apple size={18} color="#111" />
-            <Text style={styles.socialButtonText}>Continue with Apple</Text>
+            <Text style={[styles.socialButtonText, isDark && styles.socialButtonTextDark]}>Continue with Apple</Text>
           </TouchableOpacity>
 
           <View style={styles.dividerRow}>
@@ -55,8 +55,8 @@ export const MainAuthScreen = ({ onLogin, onRegister, onClose }) => {
             <View style={styles.divider} />
           </View>
 
-          <TouchableOpacity style={styles.primaryButton} onPress={onRegister} activeOpacity={0.9}>
-            <Text style={styles.primaryButtonText}>Create account</Text>
+          <TouchableOpacity style={[styles.primaryButton, isDark && styles.primaryButtonDark]} onPress={onRegister} activeOpacity={0.9}>
+            <Text style={[styles.primaryButtonText, isDark && styles.primaryButtonTextDark]}>Create account</Text>
           </TouchableOpacity>
 
           <Text style={styles.termsText}>
@@ -129,10 +129,18 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 8,
   },
+  socialButtonDark: {
+    backgroundColor: '#1f2428',
+    borderWidth: 1,
+    borderColor: '#536471',
+  },
   socialButtonText: {
     color: '#111',
     fontWeight: '700',
     fontSize: 15,
+  },
+  socialButtonTextDark: {
+    color: '#fff',
   },
   dividerRow: {
     flexDirection: 'row',
@@ -156,10 +164,18 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  primaryButtonDark: {
+    backgroundColor: '#1f2428',
+    borderWidth: 1,
+    borderColor: '#536471',
+  },
   primaryButtonText: {
     color: '#111',
     fontSize: 17,
     fontWeight: '800',
+  },
+  primaryButtonTextDark: {
+    color: '#fff',
   },
   termsText: {
     color: '#71767b',

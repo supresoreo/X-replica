@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { retryWithExponentialBackoff } from '../utils/apiRetry';
 
 const parseAuthResponse = (response) => {
   const payload = response.data || {};
@@ -11,24 +12,32 @@ const parseAuthResponse = (response) => {
 
 export const authService = {
   login: async ({ email, password }) => {
-    const response = await apiClient.post('/auth/login', { email, password });
+    const response = await retryWithExponentialBackoff(
+      () => apiClient.post('/auth/login', { email, password }),
+      5, // max 5 retries
+      1000 // initial delay 1s
+    );
     return parseAuthResponse(response);
   },
 
   register: async ({ fullName, username, email, birthday, password }) => {
-    const response = await apiClient.post('/auth/register', {
-      name: fullName,
-      fullName,
-      displayName: fullName,
-      username,
-      handle: username,
-      userName: username,
-      email,
-      birthday,
-      birthDate: birthday,
-      dateOfBirth: birthday,
-      password,
-    });
+    const response = await retryWithExponentialBackoff(
+      () => apiClient.post('/auth/register', {
+        name: fullName,
+        fullName,
+        displayName: fullName,
+        username,
+        handle: username,
+        userName: username,
+        email,
+        birthday,
+        birthDate: birthday,
+        dateOfBirth: birthday,
+        password,
+      }),
+      5, // max 5 retries
+      1000 // initial delay 1s
+    );
     return parseAuthResponse(response);
   },
 
